@@ -1,0 +1,146 @@
+# YearTimelineCard – Konzept
+
+## Ziel
+
+Eine Lovelace-Custom-Card, die den Fortschritt eines Kalenderjahres als horizontale Timeline visualisiert und dazu konfigurierbare Kennzahlen sowie optionale Ereignis-Marker (aus Entitäten mit Datum/Zeit) anzeigt.
+
+## Kern-UI
+
+### 1) Jahres-Timeline (Balken)
+
+* Horizontaler Balken von **0–100%** des aktuellen Jahres.
+* **Fortschrittsfüllung** bis „heute“ (optional).
+* **„Heute“-Marker** als vertikale Linie (optional).
+
+### 2) Strukturierung (Segment-Layer)
+
+Optionaler Layer zur Orientierung:
+
+* Segmentierung: `none | quarters | months | weeks`
+
+  * Empfehlung: `quarters` oder `months` als Default, `weeks` nur als feine Ticks (sonst visuell überladen).
+* Labels: `none | quarters | months`
+
+  * Monatslabels optional abgekürzt.
+
+### 3) Kennzahlen (Facts-Block)
+
+Konfigurierbarer Textblock (Reihenfolge frei, einzeln ein/aus), z. B.:
+
+* Jahr (z. B. 2026)
+* Tag im Jahr (`Tag 8 von 365/366`)
+* ISO-Kalenderwoche (`KW 2`)
+* Monat (Name/Nummer)
+* Quartal (`Q1–Q4`)
+* Fortschritt in Prozent (optional)
+* Resttage (optional)
+
+**Konfiguration:** `facts.show` kann entweder als **Liste** (empfohlen, Reihenfolge direkt steuerbar) oder als **Map** (`true/false`) angegeben werden.
+
+Wichtig: Schaltjahre (366) korrekt berücksichtigen; ISO-KW korrekt berechnen (inkl. Wochenjahr-Abweichung).
+
+## Marker (Ereignisse aus Entitäten)
+
+### Zweck
+
+Ereignisse wie „Sommeranfang“, „Urlaub“, „Projektstart“, „Geburtstag“, etc. als Marker auf der Jahres-Timeline platzieren.
+
+### Marker-Definition pro Eintrag
+
+* `entity`: Entität, deren **State** oder ein **Attribut** ein Datum/Zeit enthält
+* `label`: Anzeigename
+* `source`: `state` oder `attribute:<name>`
+* `type`: `point | rangeStart | rangeEnd | range` (Range optional als spätere Erweiterung)
+* `behavior`:
+
+  * `fixedDate`: Datum ist im aktuellen Jahr gültig
+  * `annualRecurring`: wiederkehrend jedes Jahr (Monat/Tag), ideal für Solstice/Equinox/Feiertage
+* Sichtbarkeit:
+
+  * `showOnBar`: Marker auf dem Balken anzeigen
+  * `showInList`: zusätzlich als Text in einer Liste unter/ neben dem Balken anzeigen
+* Optional (später): `icon`, `color`, `style`
+
+### Robustheitsregeln
+
+* Datum nicht parsebar: Marker wird ignoriert (optional Debug-Hinweis).
+* Datum außerhalb des aktuellen Jahres:
+
+  * Default: Marker ausblenden
+  * Optional: „clamp“ an Anfang/Ende des Balkens (konfigurierbar)
+
+## Layout-Logik (Responsive)
+
+* Titelzeile optional.
+* Facts-Block:
+
+  * Tablet/Desktop: 2 Spalten
+  * Smartphone: 1 Spalte
+* Timeline-Balken mit Mindesthöhe (visuell stabil).
+* Marker-Liste optional:
+
+  * Max. N Einträge direkt sichtbar (z. B. 3–5), Rest einklappbar (später/optional).
+
+## Konfiguration (YAML-Entwurf)
+
+```yaml
+type: custom:year-timeline-card
+title: Jahr
+
+facts:
+  show:
+    - year
+    - dayOfYear
+    - isoWeek
+    - quarter
+
+bar:
+  segments: months
+  labels: quarters
+  show_today_marker: true
+  show_progress_fill: true
+
+markers:
+  - entity: sensor.sommeranfang
+    label: Sommeranfang
+    source: state
+    behavior: annualRecurring
+    showOnBar: true
+    showInList: true
+
+  - entity: sensor.urlaub_start
+    label: Urlaub Start
+    source: state
+    type: rangeStart
+    behavior: fixedDate
+    showOnBar: true
+
+  - entity: sensor.urlaub_ende
+    label: Urlaub Ende
+    source: state
+    type: rangeEnd
+    behavior: fixedDate
+    showOnBar: true
+```
+
+## Scope V1
+
+**Keine Pflicht für vollständige grafische Konfiguration (UI-Editor):**
+
+* V1 setzt primär auf YAML-Konfiguration gemäß Schema/Beispielen.
+* Ein visueller Editor (Lovelace-UI-Editor) ist **nicht** Teil von V1 und kann optional später ergänzt werden.
+
+Enthalten:
+
+* Jahresbalken mit Fortschrittsfüllung und „Heute“-Marker
+* Quartals-/Monats-Segmentierung
+* Facts-Block (Jahr, Tag, KW, Monat, Quartal, optional Prozent/Resttage)
+* Marker aus Entitäten (State/Attribut), `point` + grundlegende Robustheit
+
+Nicht enthalten (V1 bewusst klein halten):
+
+* Kalender-Integration als Quelle
+* Mehrjahresansichten / Fiscal Year
+* Komplexe Charts / Heatmaps
+* Ausgefeilte Interaktionen (Drag/Zoom), umfangreiches Theming/Animation
+

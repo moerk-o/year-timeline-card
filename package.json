@@ -1,0 +1,36 @@
+{
+  "name": "year-timeline-card",
+  "version": "1.0.0",
+  "description": "A Home Assistant Lovelace card displaying the year progress as a horizontal timeline with configurable facts and event markers",
+  "type": "module",
+  "main": "dist/year-timeline-card.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "custom-card",
+    "timeline",
+    "year-progress"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  },
+  "dependencies": {
+    "lit": "^3.1.0"
+  }
+}
