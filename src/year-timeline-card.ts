@@ -19,6 +19,7 @@ import type { BarMarker } from './components/timeline-bar.js';
 import './components/timeline-bar.js';
 import './components/facts-block.js';
 import './components/marker-list.js';
+import './editor.js';
 
 // Home Assistant types
 interface Hass {
@@ -30,6 +31,7 @@ interface LovelaceCard extends HTMLElement {
   hass?: Hass;
   setConfig(config: unknown): void;
   getCardSize?(): number;
+  getConfigElement?(): HTMLElement;
 }
 
 @customElement('year-timeline-card')
@@ -81,6 +83,10 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
     if (this._config?.title) size += 1;
     if (this._config?.facts && this._config.facts.length > 0) size += 1;
     return size;
+  }
+
+  static getConfigElement(): HTMLElement {
+    return document.createElement('year-timeline-card-editor');
   }
 
   override updated(changedProps: PropertyValues): void {

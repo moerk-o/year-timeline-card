@@ -4,7 +4,7 @@
  */
 
 import type { NormalizedMarkerConfig } from './config.js';
-import { parseDate, applyAnnualRecurring, yearProgress } from './date-utils.js';
+import { parseDate, yearProgress } from './date-utils.js';
 
 export interface ResolvedMarker {
   label: string;
@@ -17,7 +17,9 @@ export interface ResolvedMarker {
 
 export interface HassEntity {
   state: string;
-  attributes: Record<string, unknown>;
+  attributes: Record<string, unknown> & {
+    friendly_name?: string;
+  };
 }
 
 export interface HassStates {
@@ -32,6 +34,18 @@ function extractDateValue(entity: HassEntity, source: 'state' | { attribute: str
     return entity.state;
   }
   return entity.attributes[source.attribute];
+}
+
+/**
+ * Get the display label for a marker
+ * Uses config label if provided, otherwise falls back to entity friendly_name
+ */
+function getMarkerLabel(config: NormalizedMarkerConfig, entity: HassEntity): string {
+  if (config.label) {
+    return config.label;
+  }
+  // Fallback to friendly_name or entity_id
+  return entity.attributes.friendly_name ?? config.entity;
 }
 
 /**
@@ -53,27 +67,25 @@ export function resolveMarker(
   const rawValue = extractDateValue(entity, config.source);
 
   // Parse date
-  let date = parseDate(rawValue);
+  const date = parseDate(rawValue);
   if (!date) {
     return null;
   }
 
-  // Apply behavior
-  if (config.behavior === 'annualRecurring') {
-    date = applyAnnualRecurring(date, targetYear);
-  }
-
   // Check if date is in target year
   if (date.getFullYear() !== targetYear) {
-    // Date outside target year - ignore (could add clamp option later)
+    // Date outside target year - ignore
     return null;
   }
 
   // Calculate position
   const position = yearProgress(date);
 
+  // Get label (from config or entity friendly_name)
+  const label = getMarkerLabel(config, entity);
+
   return {
-    label: config.label,
+    label,
     date,
     position,
     type: config.type,

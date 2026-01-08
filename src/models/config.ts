@@ -18,14 +18,12 @@ export type FactType =
 export type SegmentType = 'none' | 'quarters' | 'months' | 'weeks';
 export type LabelType = 'none' | 'quarters' | 'months';
 export type MarkerType = 'point' | 'rangeStart' | 'rangeEnd' | 'range';
-export type MarkerBehavior = 'fixedDate' | 'annualRecurring';
 
 export interface MarkerConfig {
   entity: string;
-  label: string;
+  label?: string; // optional, falls back to entity friendly_name
   source?: string; // 'state' or 'attribute:<name>', default 'state'
   type?: MarkerType; // default 'point'
-  behavior?: MarkerBehavior; // default 'fixedDate'
   showOnBar?: boolean; // default true
   showInList?: boolean; // default false
 }
@@ -56,10 +54,9 @@ export interface UserConfig {
 
 export interface NormalizedMarkerConfig {
   entity: string;
-  label: string;
+  label: string | null; // null means use entity friendly_name
   source: 'state' | { attribute: string };
   type: MarkerType;
-  behavior: MarkerBehavior;
   showOnBar: boolean;
   showInList: boolean;
 }
@@ -170,9 +167,6 @@ function normalizeMarker(marker: MarkerConfig): NormalizedMarkerConfig | null {
   if (!marker.entity || typeof marker.entity !== 'string') {
     return null;
   }
-  if (!marker.label || typeof marker.label !== 'string') {
-    return null;
-  }
 
   // Parse source
   let source: 'state' | { attribute: string } = 'state';
@@ -189,18 +183,11 @@ function normalizeMarker(marker: MarkerConfig): NormalizedMarkerConfig | null {
     ? (marker.type as MarkerType)
     : 'point';
 
-  // Normalize behavior
-  const validBehaviors: MarkerBehavior[] = ['fixedDate', 'annualRecurring'];
-  const behavior: MarkerBehavior = validBehaviors.includes(marker.behavior as MarkerBehavior)
-    ? (marker.behavior as MarkerBehavior)
-    : 'fixedDate';
-
   return {
     entity: marker.entity,
-    label: marker.label,
+    label: marker.label?.trim() || null, // null = use friendly_name
     source,
     type,
-    behavior,
     showOnBar: marker.showOnBar ?? true,
     showInList: marker.showInList ?? false,
   };
