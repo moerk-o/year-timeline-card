@@ -5,7 +5,7 @@
 
 import { LitElement, html, css, nothing, type TemplateResult, type CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { FactType, SegmentType, LabelType, MarkerType } from './models/config.js';
+import { DEFAULT_MARKER, type FactType, type SegmentType, type LabelType, type MarkerType } from './models/config.js';
 
 // ============================================================================
 // Types
@@ -593,7 +593,7 @@ export class YearTimelineCardEditor extends LitElement {
         <div class="form-row">
           <ha-select
             .label=${l.type}
-            .value=${marker.type ?? 'point'}
+            .value=${marker.type ?? DEFAULT_MARKER.type}
             @selected=${(e: CustomEvent): void => this._onMarkerTypeChange(e)}
             @closed=${(e: Event): void => e.stopPropagation()}
           >
@@ -606,7 +606,7 @@ export class YearTimelineCardEditor extends LitElement {
         <div class="switch-row">
           <span>${l.showOnBar}</span>
           <ha-switch
-            .checked=${marker.showOnBar ?? true}
+            .checked=${marker.showOnBar ?? DEFAULT_MARKER.showOnBar}
             @change=${(e: Event): void => this._onMarkerSwitchChange('showOnBar', e)}
           ></ha-switch>
         </div>
@@ -614,7 +614,7 @@ export class YearTimelineCardEditor extends LitElement {
         <div class="switch-row">
           <span>${l.showInList}</span>
           <ha-switch
-            .checked=${marker.showInList ?? false}
+            .checked=${marker.showInList ?? DEFAULT_MARKER.showInList}
             @change=${(e: Event): void => this._onMarkerSwitchChange('showInList', e)}
           ></ha-switch>
         </div>
@@ -735,18 +735,13 @@ export class YearTimelineCardEditor extends LitElement {
     const markers = [...(this._config?.markers ?? [])];
     markers.push({
       entity: entityId,
-      type: 'point',
-      showOnBar: true,
-      showInList: false,
+      ...DEFAULT_MARKER,
     });
 
     this._updateConfig({
       ...this._config!,
       markers,
     });
-
-    // Open sub-editor for the new marker
-    this._editingMarkerIndex = markers.length - 1;
   };
 
   private _onEditMarker(index: number): void {

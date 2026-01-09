@@ -25,7 +25,7 @@ export interface MarkerConfig {
   source?: string; // 'state' or 'attribute:<name>', default 'state'
   type?: MarkerType; // default 'point'
   showOnBar?: boolean; // default true
-  showInList?: boolean; // default false
+  showInList?: boolean; // default true
 }
 
 export interface BarConfig {
@@ -90,6 +90,12 @@ const DEFAULT_BAR: NormalizedBarConfig = {
 };
 
 const DEFAULT_LOCALE = 'de';
+
+export const DEFAULT_MARKER = {
+  type: 'point' as MarkerType,
+  showOnBar: true,
+  showInList: true,
+};
 
 // ============================================================================
 // Normalization functions
@@ -181,15 +187,15 @@ function normalizeMarker(marker: MarkerConfig): NormalizedMarkerConfig | null {
   const validTypes: MarkerType[] = ['point', 'rangeStart', 'rangeEnd', 'range'];
   const type: MarkerType = validTypes.includes(marker.type as MarkerType)
     ? (marker.type as MarkerType)
-    : 'point';
+    : DEFAULT_MARKER.type;
 
   return {
     entity: marker.entity,
     label: marker.label?.trim() || null, // null = use friendly_name
     source,
     type,
-    showOnBar: marker.showOnBar ?? true,
-    showInList: marker.showInList ?? false,
+    showOnBar: marker.showOnBar ?? DEFAULT_MARKER.showOnBar,
+    showInList: marker.showInList ?? DEFAULT_MARKER.showInList,
   };
 }
 
