@@ -402,16 +402,18 @@ export class YearTimelineCardEditor extends LitElement {
         <div class="content">
           ${currentFacts.length > 0
             ? html`
-                <ha-chip-set>
-                  ${currentFacts.map(
-                    (fact) => html`
-                      <ha-input-chip
-                        .label=${factLabels[fact]}
-                        @remove=${(): void => this._onRemoveFact(fact)}
-                      ></ha-input-chip>
-                    `
-                  )}
-                </ha-chip-set>
+                <ha-sortable no-style @item-moved=${this._onFactMoved}>
+                  <ha-chip-set>
+                    ${currentFacts.map(
+                      (fact) => html`
+                        <ha-input-chip
+                          .label=${factLabels[fact]}
+                          @remove=${(): void => this._onRemoveFact(fact)}
+                        ></ha-input-chip>
+                      `
+                    )}
+                  </ha-chip-set>
+                </ha-sortable>
               `
             : nothing}
           ${availableFacts.length > 0
@@ -657,8 +659,8 @@ export class YearTimelineCardEditor extends LitElement {
     const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
     if (currentFacts.includes(fact)) return;
 
-    // Add fact in the order defined by ALL_FACTS
-    const newFacts = ALL_FACTS.filter((f) => currentFacts.includes(f) || f === fact);
+    // Add fact at the end (user can reorder via drag&drop)
+    const newFacts = [...currentFacts, fact];
 
     this._updateConfig({
       ...this._config!,
@@ -678,6 +680,22 @@ export class YearTimelineCardEditor extends LitElement {
       facts: { show: newFacts },
     });
   }
+
+  private _onFactMoved = (e: CustomEvent): void => {
+    const { oldIndex, newIndex } = e.detail;
+    const currentFacts = [...(this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'])] as FactType[];
+
+    // Move the fact from oldIndex to newIndex
+    const [moved] = currentFacts.splice(oldIndex, 1);
+    if (moved) {
+      currentFacts.splice(newIndex, 0, moved);
+    }
+
+    this._updateConfig({
+      ...this._config!,
+      facts: { show: currentFacts },
+    });
+  };
 
   // ==========================================================================
   // Event Handlers - Bar
