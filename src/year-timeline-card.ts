@@ -110,6 +110,7 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
     const progress = yearProgress(this._now);
     const resolvedMarkers = this.resolveMarkers(year);
     const barMarkers = this.toBarMarkers(resolvedMarkers);
+    const locale = this._resolveLocale();
 
     return html`
       <ha-card>
@@ -122,14 +123,14 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
                 <ytc-facts-block
                   .date=${this._now}
                   .facts=${this._config.facts}
-                  .locale=${this._config.locale}
+                  .locale=${locale}
                 ></ytc-facts-block>
               `
             : nothing}
           <ytc-timeline-bar
             .progress=${progress}
             .year=${year}
-            .locale=${this._config.locale}
+            .locale=${locale}
             .config=${this._config.bar}
             .markers=${barMarkers}
           ></ytc-timeline-bar>
@@ -137,13 +138,28 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
             ? html`
                 <ytc-marker-list
                   .markers=${resolvedMarkers}
-                  .locale=${this._config.locale}
+                  .locale=${locale}
                 ></ytc-marker-list>
               `
             : nothing}
         </div>
       </ha-card>
     `;
+  }
+
+  private _resolveLocale(): string {
+    const configLocale = this._config?.locale;
+
+    // If 'auto' or not set, detect from HA
+    if (!configLocale || configLocale === 'auto') {
+      const hassLang = this.hass?.language ?? 'en';
+      // Extract base language (e.g., 'de' from 'de-DE')
+      const baseLang = hassLang.split('-')[0];
+      // Return if we support it, otherwise fallback to English
+      return baseLang && (baseLang === 'de' || baseLang === 'en') ? baseLang : 'en';
+    }
+
+    return configLocale;
   }
 
   private renderError(): TemplateResult {

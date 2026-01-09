@@ -89,7 +89,7 @@ const DEFAULT_BAR: NormalizedBarConfig = {
   showProgressFill: true,
 };
 
-const DEFAULT_LOCALE = 'de';
+const DEFAULT_LOCALE = 'auto';
 
 export const DEFAULT_MARKER = {
   type: 'point' as MarkerType,

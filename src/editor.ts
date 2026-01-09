@@ -92,6 +92,7 @@ const LABELS = {
     title: 'Titel',
     titleHelper: 'Optionaler Titel für die Karte',
     locale: 'Sprache',
+    localeAuto: 'Automatisch',
     german: 'Deutsch',
     english: 'Englisch',
     facts: 'Kennzahlen',
@@ -125,6 +126,7 @@ const LABELS = {
     title: 'Title',
     titleHelper: 'Optional card title',
     locale: 'Language',
+    localeAuto: 'Automatic',
     german: 'German',
     english: 'English',
     facts: 'Facts',
@@ -323,12 +325,23 @@ export class YearTimelineCardEditor extends LitElement {
   }
 
   private _getLocale(): string {
-    return this._config?.locale ?? 'de';
+    const configLocale = this._config?.locale;
+
+    // If no locale set or 'auto', detect from HA
+    if (!configLocale || configLocale === 'auto') {
+      const hassLang = this.hass?.language ?? 'en';
+      // Extract base language (e.g., 'de' from 'de-DE')
+      const baseLang = hassLang.split('-')[0];
+      // Return if we support it, otherwise fallback to English
+      return baseLang && (baseLang === 'de' || baseLang === 'en') ? baseLang : 'en';
+    }
+
+    return configLocale;
   }
 
   private _getLabels(): (typeof LABELS)['de'] {
     const locale = this._getLocale();
-    return LABELS[locale as keyof typeof LABELS] ?? LABELS.de;
+    return LABELS[locale as keyof typeof LABELS] ?? LABELS.en;
   }
 
   override render(): TemplateResult {
@@ -357,7 +370,7 @@ export class YearTimelineCardEditor extends LitElement {
 
   private _renderGeneralSection(): TemplateResult {
     const l = this._getLabels();
-    const locale = this._getLocale();
+    const configLocale = this._config?.locale ?? 'auto';
 
     return html`
       <ha-expansion-panel outlined .header=${l.general}>
@@ -373,10 +386,11 @@ export class YearTimelineCardEditor extends LitElement {
           <div class="form-row">
             <ha-select
               .label=${l.locale}
-              .value=${locale}
+              .value=${configLocale}
               @selected=${this._onLocaleChange}
               @closed=${(e: Event): void => e.stopPropagation()}
             >
+              <mwc-list-item value="auto">${l.localeAuto}</mwc-list-item>
               <mwc-list-item value="de">${l.german}</mwc-list-item>
               <mwc-list-item value="en">${l.english}</mwc-list-item>
             </ha-select>
