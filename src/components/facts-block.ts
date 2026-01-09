@@ -62,19 +62,32 @@ export class FactsBlock extends LitElement {
   @property({ type: String })
   locale = 'de';
 
+  @property({ type: Boolean })
+  compact = false;
+
+  @property({ type: Number })
+  columns = 2;
+
   override render(): TemplateResult {
     if (this.facts.length === 0) {
       return html``;
     }
 
+    // Build dynamic grid styles
+    const containerStyle = `
+      grid-template-columns: repeat(${this.columns}, 1fr);
+      ${this.compact ? 'gap: 2px 12px;' : ''}
+    `;
+    const itemClass = this.compact ? 'fact-item compact' : 'fact-item';
+
     return html`
-      <div class="facts-container">
-        ${this.facts.map((fact) => this.renderFact(fact))}
+      <div class="facts-container" style=${containerStyle}>
+        ${this.facts.map((fact) => this.renderFact(fact, itemClass))}
       </div>
     `;
   }
 
-  private renderFact(fact: FactType): TemplateResult | typeof nothing {
+  private renderFact(fact: FactType, itemClass: string): TemplateResult | typeof nothing {
     const label = this.getLabel(fact);
     const value = this.getValue(fact);
 
@@ -83,7 +96,7 @@ export class FactsBlock extends LitElement {
     }
 
     return html`
-      <div class="fact-item">
+      <div class=${itemClass}>
         <span class="fact-label">${label}</span>
         <span class="fact-value">${value}</span>
       </div>

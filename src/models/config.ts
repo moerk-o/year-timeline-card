@@ -33,6 +33,13 @@ export interface BarConfig {
   labels?: LabelType;
   show_today_marker?: boolean;
   show_progress_fill?: boolean;
+  progress_color?: string; // CSS color for progress fill
+}
+
+export interface LayoutConfig {
+  borderless?: boolean; // Remove ha-card border/shadow
+  compact_facts?: boolean; // Reduce vertical spacing in facts
+  facts_columns?: number; // Number of columns for facts (default 2)
 }
 
 export interface FactsConfig {
@@ -43,6 +50,7 @@ export interface UserConfig {
   type: string;
   title?: string;
   locale?: string;
+  layout?: LayoutConfig;
   facts?: FactsConfig;
   bar?: BarConfig;
   markers?: MarkerConfig[];
@@ -66,11 +74,19 @@ export interface NormalizedBarConfig {
   labels: LabelType;
   showTodayMarker: boolean;
   showProgressFill: boolean;
+  progressColor: string | null; // null = use default
+}
+
+export interface NormalizedLayoutConfig {
+  borderless: boolean;
+  compactFacts: boolean;
+  factsColumns: number;
 }
 
 export interface NormalizedConfig {
   title: string | null;
   locale: string;
+  layout: NormalizedLayoutConfig;
   facts: FactType[];
   bar: NormalizedBarConfig;
   markers: NormalizedMarkerConfig[];
@@ -87,6 +103,13 @@ const DEFAULT_BAR: NormalizedBarConfig = {
   labels: 'quarters',
   showTodayMarker: true,
   showProgressFill: true,
+  progressColor: null,
+};
+
+const DEFAULT_LAYOUT: NormalizedLayoutConfig = {
+  borderless: false,
+  compactFacts: false,
+  factsColumns: 2,
 };
 
 const DEFAULT_LOCALE = 'auto';
@@ -149,6 +172,19 @@ function normalizeBar(barConfig?: BarConfig): NormalizedBarConfig {
     labels: normalizeLabelType(barConfig.labels),
     showTodayMarker: barConfig.show_today_marker ?? DEFAULT_BAR.showTodayMarker,
     showProgressFill: barConfig.show_progress_fill ?? DEFAULT_BAR.showProgressFill,
+    progressColor: barConfig.progress_color ?? DEFAULT_BAR.progressColor,
+  };
+}
+
+function normalizeLayout(layoutConfig?: LayoutConfig): NormalizedLayoutConfig {
+  if (!layoutConfig) {
+    return DEFAULT_LAYOUT;
+  }
+
+  return {
+    borderless: layoutConfig.borderless ?? DEFAULT_LAYOUT.borderless,
+    compactFacts: layoutConfig.compact_facts ?? DEFAULT_LAYOUT.compactFacts,
+    factsColumns: layoutConfig.facts_columns ?? DEFAULT_LAYOUT.factsColumns,
   };
 }
 
@@ -221,6 +257,7 @@ export function normalizeConfig(userConfig: UserConfig): NormalizedConfig {
   return {
     title: userConfig.title ?? null,
     locale: userConfig.locale ?? DEFAULT_LOCALE,
+    layout: normalizeLayout(userConfig.layout),
     facts: normalizeFacts(userConfig.facts),
     bar: normalizeBar(userConfig.bar),
     markers: normalizeMarkers(userConfig.markers),

@@ -28,6 +28,13 @@ export const cardStyles = css`
   .card-content {
     padding: 16px;
   }
+
+  /* Borderless mode */
+  ha-card.borderless {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
 `;
 
 export const timelineBarStyles = css`
@@ -181,6 +188,16 @@ export const factsBlockStyles = css`
     font-size: 0.95em;
     font-weight: 500;
     color: var(--ytc-text-primary);
+  }
+
+  /* Compact mode */
+  .fact-item.compact {
+    padding: 1px 0;
+  }
+
+  .fact-item.compact .fact-label,
+  .fact-item.compact .fact-value {
+    font-size: 0.8em;
   }
 `;
 

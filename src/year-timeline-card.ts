@@ -111,9 +111,16 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
     const resolvedMarkers = this.resolveMarkers(year);
     const barMarkers = this.toBarMarkers(resolvedMarkers);
     const locale = this._resolveLocale();
+    const layout = this._config.layout;
+
+    // Build dynamic styles for layout options
+    const cardClass = layout.borderless ? 'borderless' : '';
+    const progressColorStyle = this._config.bar.progressColor
+      ? `--ytc-primary-color: ${this._config.bar.progressColor}`
+      : '';
 
     return html`
-      <ha-card>
+      <ha-card class=${cardClass} style=${progressColorStyle}>
         ${this._config.title
           ? html`<div class="card-header">${this._config.title}</div>`
           : nothing}
@@ -124,6 +131,8 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
                   .date=${this._now}
                   .facts=${this._config.facts}
                   .locale=${locale}
+                  .compact=${layout.compactFacts}
+                  .columns=${layout.factsColumns}
                 ></ytc-facts-block>
               `
             : nothing}

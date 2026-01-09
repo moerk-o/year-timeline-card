@@ -15,6 +15,11 @@ interface EditorConfig {
   type: string;
   title?: string;
   locale?: string;
+  layout?: {
+    borderless?: boolean;
+    compact_facts?: boolean;
+    facts_columns?: number;
+  };
   facts?: {
     show?: FactType[];
   };
@@ -23,6 +28,7 @@ interface EditorConfig {
     labels?: LabelType;
     show_today_marker?: boolean;
     show_progress_fill?: boolean;
+    progress_color?: string;
   };
   markers?: MarkerEditorConfig[];
 }
@@ -65,6 +71,30 @@ const ALL_FACTS: FactType[] = [
   'remainingDays',
 ];
 
+// Predefined colors for the color picker (similar to Mushroom)
+const PRESET_COLORS: { name: string; value: string; labelDe: string; labelEn: string }[] = [
+  { name: 'default', value: '', labelDe: 'Standard', labelEn: 'Default' },
+  { name: 'red', value: '#f44336', labelDe: 'Rot', labelEn: 'Red' },
+  { name: 'pink', value: '#e91e63', labelDe: 'Pink', labelEn: 'Pink' },
+  { name: 'purple', value: '#9c27b0', labelDe: 'Lila', labelEn: 'Purple' },
+  { name: 'deep-purple', value: '#673ab7', labelDe: 'Tiefviolett', labelEn: 'Deep Purple' },
+  { name: 'indigo', value: '#3f51b5', labelDe: 'Indigo', labelEn: 'Indigo' },
+  { name: 'blue', value: '#2196f3', labelDe: 'Blau', labelEn: 'Blue' },
+  { name: 'light-blue', value: '#03a9f4', labelDe: 'Hellblau', labelEn: 'Light Blue' },
+  { name: 'cyan', value: '#00bcd4', labelDe: 'Cyan', labelEn: 'Cyan' },
+  { name: 'teal', value: '#009688', labelDe: 'Blaugrün', labelEn: 'Teal' },
+  { name: 'green', value: '#4caf50', labelDe: 'Grün', labelEn: 'Green' },
+  { name: 'light-green', value: '#8bc34a', labelDe: 'Hellgrün', labelEn: 'Light Green' },
+  { name: 'lime', value: '#cddc39', labelDe: 'Limette', labelEn: 'Lime' },
+  { name: 'yellow', value: '#ffeb3b', labelDe: 'Gelb', labelEn: 'Yellow' },
+  { name: 'amber', value: '#ffc107', labelDe: 'Bernstein', labelEn: 'Amber' },
+  { name: 'orange', value: '#ff9800', labelDe: 'Orange', labelEn: 'Orange' },
+  { name: 'deep-orange', value: '#ff5722', labelDe: 'Tieforange', labelEn: 'Deep Orange' },
+  { name: 'brown', value: '#795548', labelDe: 'Braun', labelEn: 'Brown' },
+  { name: 'grey', value: '#9e9e9e', labelDe: 'Grau', labelEn: 'Grey' },
+  { name: 'blue-grey', value: '#607d8b', labelDe: 'Blaugrau', labelEn: 'Blue Grey' },
+];
+
 const FACT_LABELS: Record<string, Record<FactType, string>> = {
   de: {
     year: 'Jahr',
@@ -95,6 +125,12 @@ const LABELS = {
     localeAuto: 'Automatisch',
     german: 'Deutsch',
     english: 'Englisch',
+    layout: 'Layout',
+    borderless: 'Rahmenlos',
+    borderlessHelper: 'Entfernt Rahmen und Schatten',
+    compactFacts: 'Kompakte Kennzahlen',
+    compactFactsHelper: 'Reduziert Abstände zwischen Kennzahlen',
+    factsColumns: 'Spalten für Kennzahlen',
     facts: 'Kennzahlen',
     bar: 'Zeitstrahl',
     segments: 'Segment-Linien',
@@ -105,6 +141,8 @@ const LABELS = {
     weeks: 'Wochen',
     todayMarker: 'Heute-Marker anzeigen',
     progressFill: 'Fortschritt füllen',
+    progressColor: 'Fortschrittsfarbe',
+    progressColorHelper: 'Leer = Standardfarbe',
     markers: 'Marker',
     addMarker: 'Marker hinzufügen',
     editMarker: 'Marker bearbeiten',
@@ -129,6 +167,12 @@ const LABELS = {
     localeAuto: 'Automatic',
     german: 'German',
     english: 'English',
+    layout: 'Layout',
+    borderless: 'Borderless',
+    borderlessHelper: 'Remove border and shadow',
+    compactFacts: 'Compact Facts',
+    compactFactsHelper: 'Reduce spacing between facts',
+    factsColumns: 'Facts Columns',
     facts: 'Facts',
     bar: 'Timeline Bar',
     segments: 'Segment Lines',
@@ -139,6 +183,8 @@ const LABELS = {
     weeks: 'Weeks',
     todayMarker: 'Show Today Marker',
     progressFill: 'Show Progress Fill',
+    progressColor: 'Progress Color',
+    progressColorHelper: 'Empty = default color',
     markers: 'Markers',
     addMarker: 'Add Marker',
     editMarker: 'Edit Marker',
@@ -311,6 +357,25 @@ export class YearTimelineCardEditor extends LitElement {
     .switch-row span {
       color: var(--primary-text-color);
     }
+
+    /* Color picker */
+    .color-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--divider-color);
+      flex-shrink: 0;
+    }
+
+    .color-dot.default {
+      background: linear-gradient(135deg, var(--primary-color) 50%, var(--disabled-color) 50%);
+    }
+
+    .color-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
   `;
 
   setConfig(config: EditorConfig): void {
@@ -357,6 +422,7 @@ export class YearTimelineCardEditor extends LitElement {
     return html`
       <div class="editor-container">
         ${this._renderGeneralSection()}
+        ${this._renderLayoutSection()}
         ${this._renderFactsSection()}
         ${this._renderBarSection()}
         ${this._renderMarkersSection()}
@@ -393,6 +459,49 @@ export class YearTimelineCardEditor extends LitElement {
               <mwc-list-item value="auto">${l.localeAuto}</mwc-list-item>
               <mwc-list-item value="de">${l.german}</mwc-list-item>
               <mwc-list-item value="en">${l.english}</mwc-list-item>
+            </ha-select>
+          </div>
+        </div>
+      </ha-expansion-panel>
+    `;
+  }
+
+  // ==========================================================================
+  // Layout Section
+  // ==========================================================================
+
+  private _renderLayoutSection(): TemplateResult {
+    const l = this._getLabels();
+    const layout = this._config?.layout ?? {};
+
+    return html`
+      <ha-expansion-panel outlined .header=${l.layout}>
+        <div class="content">
+          <div class="switch-row">
+            <span>${l.borderless}</span>
+            <ha-switch
+              .checked=${layout.borderless ?? false}
+              @change=${this._onBorderlessChange}
+            ></ha-switch>
+          </div>
+          <div class="switch-row">
+            <span>${l.compactFacts}</span>
+            <ha-switch
+              .checked=${layout.compact_facts ?? false}
+              @change=${this._onCompactFactsChange}
+            ></ha-switch>
+          </div>
+          <div class="form-row">
+            <ha-select
+              .label=${l.factsColumns}
+              .value=${String(layout.facts_columns ?? 2)}
+              @selected=${this._onFactsColumnsChange}
+              @closed=${(e: Event): void => e.stopPropagation()}
+            >
+              <mwc-list-item value="1">1</mwc-list-item>
+              <mwc-list-item value="2">2</mwc-list-item>
+              <mwc-list-item value="3">3</mwc-list-item>
+              <mwc-list-item value="4">4</mwc-list-item>
             </ha-select>
           </div>
         </div>
@@ -500,9 +609,37 @@ export class YearTimelineCardEditor extends LitElement {
               @change=${this._onProgressFillChange}
             ></ha-switch>
           </div>
+          <div class="form-row">
+            <ha-select
+              .label=${l.progressColor}
+              .value=${bar.progress_color ?? ''}
+              @selected=${this._onProgressColorChange}
+              @closed=${(e: Event): void => e.stopPropagation()}
+            >
+              ${this._renderColorOptions()}
+            </ha-select>
+          </div>
         </div>
       </ha-expansion-panel>
     `;
+  }
+
+  private _renderColorOptions(): TemplateResult[] {
+    const locale = this._getLocale();
+    return PRESET_COLORS.map((color) => {
+      const label = locale === 'de' ? color.labelDe : color.labelEn;
+      const dotClass = color.value === '' ? 'color-dot default' : 'color-dot';
+      const dotStyle = color.value ? `background-color: ${color.value}` : '';
+
+      return html`
+        <mwc-list-item value=${color.value} graphic="icon">
+          <span class="color-item">
+            <span class=${dotClass} style=${dotStyle}></span>
+            ${label}
+          </span>
+        </mwc-list-item>
+      `;
+    });
   }
 
   // ==========================================================================
@@ -663,6 +800,36 @@ export class YearTimelineCardEditor extends LitElement {
   };
 
   // ==========================================================================
+  // Event Handlers - Layout
+  // ==========================================================================
+
+  private _onBorderlessChange = (e: Event): void => {
+    const target = e.target as HTMLInputElement;
+    this._updateConfig({
+      ...this._config!,
+      layout: { ...this._config?.layout, borderless: target.checked },
+    });
+  };
+
+  private _onCompactFactsChange = (e: Event): void => {
+    const target = e.target as HTMLInputElement;
+    this._updateConfig({
+      ...this._config!,
+      layout: { ...this._config?.layout, compact_facts: target.checked },
+    });
+  };
+
+  private _onFactsColumnsChange = (e: CustomEvent): void => {
+    const value = (e.target as HTMLSelectElement).value;
+    if (value) {
+      this._updateConfig({
+        ...this._config!,
+        layout: { ...this._config?.layout, facts_columns: parseInt(value, 10) },
+      });
+    }
+  };
+
+  // ==========================================================================
   // Event Handlers - Facts
   // ==========================================================================
 
@@ -749,6 +916,19 @@ export class YearTimelineCardEditor extends LitElement {
       ...this._config!,
       bar: { ...this._config?.bar, show_progress_fill: target.checked },
     });
+  };
+
+  private _onProgressColorChange = (e: CustomEvent): void => {
+    const value = (e.target as HTMLSelectElement).value;
+    const newConfig = { ...this._config! };
+    if (value) {
+      newConfig.bar = { ...newConfig.bar, progress_color: value };
+    } else {
+      // Remove progress_color if empty (default selected)
+      newConfig.bar = { ...newConfig.bar };
+      delete newConfig.bar.progress_color;
+    }
+    this._updateConfig(newConfig);
   };
 
   // ==========================================================================
