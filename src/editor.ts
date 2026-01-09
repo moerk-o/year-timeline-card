@@ -176,51 +176,56 @@ export class YearTimelineCardEditor extends LitElement {
   private _editingMarkerIndex: number | null = null;
 
   static override styles: CSSResultGroup = css`
-    .editor-container {
+    .card-config {
       display: flex;
       flex-direction: column;
     }
 
-    ha-expansion-panel {
-      margin-bottom: 4px;
+    .form-row {
+      margin-bottom: 16px;
     }
 
-    .content {
-      padding: 12px;
+    ha-textfield,
+    ha-select {
+      display: block;
+      width: 100%;
     }
 
-    /* Facts checkboxes */
-    .checkbox-group {
+    /* Side by side toggles like entities card */
+    .side-by-side {
       display: flex;
       flex-wrap: wrap;
       gap: 8px 16px;
+      margin-bottom: 16px;
     }
 
-    .checkbox-item {
+    .side-by-side > * {
+      flex: 1 1 200px;
+    }
+
+    .switch-row {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 8px;
-      cursor: pointer;
-    }
-
-    .checkbox-item ha-checkbox {
-      --mdc-checkbox-unchecked-color: var(--secondary-text-color);
+      padding: 8px 0;
     }
 
     /* Marker list */
     .marker-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
     }
 
     .marker-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      background: var(--secondary-background-color);
-      border-radius: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--divider-color);
+    }
+
+    .marker-row:last-child {
+      border-bottom: none;
     }
 
     .marker-row .handle {
@@ -330,118 +335,66 @@ export class YearTimelineCardEditor extends LitElement {
       return this._renderMarkerSubEditor();
     }
 
-    return html`
-      <div class="editor-container">
-        ${this._renderGeneralSection()}
-        ${this._renderFactsSection()}
-        ${this._renderBarSection()}
-        ${this._renderMarkersSection()}
-      </div>
-    `;
-  }
-
-  // ==========================================================================
-  // General Section
-  // ==========================================================================
-
-  private _renderGeneralSection(): TemplateResult {
     const l = this._getLabels();
     const locale = this._getLocale();
-
-    return html`
-      <ha-expansion-panel outlined .header=${l.general}>
-        <div class="content">
-          <div class="form-row">
-            <ha-textfield
-              .label=${l.title}
-              .helper=${l.titleHelper}
-              .value=${this._config?.title ?? ''}
-              @input=${this._onTitleChange}
-            ></ha-textfield>
-          </div>
-          <div class="form-row">
-            <ha-select
-              .label=${l.locale}
-              .value=${locale}
-              @selected=${this._onLocaleChange}
-              @closed=${(e: Event): void => e.stopPropagation()}
-            >
-              <mwc-list-item value="de">${l.german}</mwc-list-item>
-              <mwc-list-item value="en">${l.english}</mwc-list-item>
-            </ha-select>
-          </div>
-        </div>
-      </ha-expansion-panel>
-    `;
-  }
-
-  // ==========================================================================
-  // Facts Section
-  // ==========================================================================
-
-  private _renderFactsSection(): TemplateResult {
-    const l = this._getLabels();
-    const locale = this._getLocale();
-    const factLabels = FACT_LABELS[locale] ?? FACT_LABELS.de!;
-    const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
-
-    return html`
-      <ha-expansion-panel outlined .header=${l.facts}>
-        <div class="content">
-          <div class="checkbox-group">
-            ${ALL_FACTS.map(
-              (fact) => html`
-                <label class="checkbox-item">
-                  <ha-checkbox
-                    .checked=${currentFacts.includes(fact)}
-                    @change=${(e: Event): void => this._onFactToggle(fact, e)}
-                  ></ha-checkbox>
-                  <span>${factLabels[fact]}</span>
-                </label>
-              `
-            )}
-          </div>
-        </div>
-      </ha-expansion-panel>
-    `;
-  }
-
-  // ==========================================================================
-  // Bar Section
-  // ==========================================================================
-
-  private _renderBarSection(): TemplateResult {
-    const l = this._getLabels();
     const bar = this._config?.bar ?? {};
+    const markers = this._config?.markers ?? [];
 
     return html`
-      <ha-expansion-panel outlined .header=${l.bar}>
-        <div class="content">
-          <div class="form-row">
-            <ha-select
-              .label=${l.segments}
-              .value=${bar.segments ?? 'months'}
-              @selected=${this._onSegmentsChange}
-              @closed=${(e: Event): void => e.stopPropagation()}
-            >
-              <mwc-list-item value="none">${l.none}</mwc-list-item>
-              <mwc-list-item value="quarters">${l.quarters}</mwc-list-item>
-              <mwc-list-item value="months">${l.months}</mwc-list-item>
-              <mwc-list-item value="weeks">${l.weeks}</mwc-list-item>
-            </ha-select>
-          </div>
-          <div class="form-row">
-            <ha-select
-              .label=${l.barLabels}
-              .value=${bar.labels ?? 'quarters'}
-              @selected=${this._onLabelsChange}
-              @closed=${(e: Event): void => e.stopPropagation()}
-            >
-              <mwc-list-item value="none">${l.none}</mwc-list-item>
-              <mwc-list-item value="quarters">${l.quarters}</mwc-list-item>
-              <mwc-list-item value="months">${l.months}</mwc-list-item>
-            </ha-select>
-          </div>
+      <div class="card-config">
+        <!-- Title -->
+        <div class="form-row">
+          <ha-textfield
+            .label=${l.title}
+            .helper=${l.titleHelper}
+            .value=${this._config?.title ?? ''}
+            @input=${this._onTitleChange}
+          ></ha-textfield>
+        </div>
+
+        <!-- Locale -->
+        <div class="form-row">
+          <ha-select
+            .label=${l.locale}
+            .value=${locale}
+            @selected=${this._onLocaleChange}
+            @closed=${(e: Event): void => e.stopPropagation()}
+          >
+            <mwc-list-item value="de">${l.german}</mwc-list-item>
+            <mwc-list-item value="en">${l.english}</mwc-list-item>
+          </ha-select>
+        </div>
+
+        <!-- Bar settings -->
+        <div class="form-row">
+          <ha-select
+            .label=${l.segments}
+            .value=${bar.segments ?? 'months'}
+            @selected=${this._onSegmentsChange}
+            @closed=${(e: Event): void => e.stopPropagation()}
+          >
+            <mwc-list-item value="none">${l.none}</mwc-list-item>
+            <mwc-list-item value="quarters">${l.quarters}</mwc-list-item>
+            <mwc-list-item value="months">${l.months}</mwc-list-item>
+            <mwc-list-item value="weeks">${l.weeks}</mwc-list-item>
+          </ha-select>
+        </div>
+
+        <div class="form-row">
+          <ha-select
+            .label=${l.barLabels}
+            .value=${bar.labels ?? 'quarters'}
+            @selected=${this._onLabelsChange}
+            @closed=${(e: Event): void => e.stopPropagation()}
+          >
+            <mwc-list-item value="none">${l.none}</mwc-list-item>
+            <mwc-list-item value="quarters">${l.quarters}</mwc-list-item>
+            <mwc-list-item value="months">${l.months}</mwc-list-item>
+          </ha-select>
+        </div>
+
+        <!-- Toggles side by side -->
+        <div class="side-by-side">
           <div class="switch-row">
             <span>${l.todayMarker}</span>
             <ha-switch
@@ -457,33 +410,22 @@ export class YearTimelineCardEditor extends LitElement {
             ></ha-switch>
           </div>
         </div>
-      </ha-expansion-panel>
+
+        <!-- Markers list -->
+        ${markers.length === 0
+          ? html`<div class="no-markers">${l.noMarkers}</div>`
+          : html`
+              <div class="marker-list">
+                ${markers.map((marker, index) => this._renderMarkerRow(marker, index))}
+              </div>
+            `}
+      </div>
     `;
   }
 
   // ==========================================================================
-  // Markers Section
+  // Marker Row
   // ==========================================================================
-
-  private _renderMarkersSection(): TemplateResult {
-    const l = this._getLabels();
-    const markers = this._config?.markers ?? [];
-
-    return html`
-      <ha-expansion-panel outlined .header=${l.markers}>
-        <div class="content">
-          ${markers.length === 0
-            ? html`<div class="no-markers">${l.noMarkers}</div>`
-            : html`
-                <div class="marker-list">
-                  ${markers.map((marker, index) => this._renderMarkerRow(marker, index))}
-                </div>
-              `}
-
-        </div>
-      </ha-expansion-panel>
-    `;
-  }
 
   private _renderMarkerRow(marker: MarkerEditorConfig, index: number): TemplateResult {
     const entity = this.hass?.states[marker.entity];
