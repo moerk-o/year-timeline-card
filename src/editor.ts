@@ -1,11 +1,15 @@
 /**
  * Visual editor for YearTimelineCard
- * Provides a form-based configuration UI in Home Assistant
+ * Uses native Home Assistant components for a consistent UI experience
  */
 
-import { LitElement, html, css, type TemplateResult } from 'lit';
+import { LitElement, html, css, nothing, type TemplateResult, type CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { FactType, SegmentType, LabelType, MarkerType } from './models/config.js';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface EditorConfig {
   type: string;
@@ -32,9 +36,31 @@ interface MarkerEditorConfig {
 }
 
 interface Hass {
-  states: Record<string, unknown>;
+  states: Record<string, HassEntity>;
   language?: string;
+  localize?: (key: string) => string;
 }
+
+interface HassEntity {
+  entity_id: string;
+  state: string;
+  attributes: {
+    friendly_name?: string;
+    device_class?: string;
+    icon?: string;
+  };
+}
+
+interface HaFormSchema {
+  name: string;
+  selector?: Record<string, unknown>;
+  required?: boolean;
+  default?: unknown;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 const ALL_FACTS: FactType[] = [
   'year',
@@ -67,6 +93,77 @@ const FACT_LABELS: Record<string, Record<FactType, string>> = {
   },
 };
 
+const LABELS = {
+  de: {
+    general: 'Allgemein',
+    title: 'Titel',
+    titleHelper: 'Optionaler Titel für die Karte',
+    locale: 'Sprache',
+    german: 'Deutsch',
+    english: 'Englisch',
+    facts: 'Kennzahlen',
+    bar: 'Zeitstrahl',
+    segments: 'Segment-Linien',
+    barLabels: 'Beschriftung',
+    none: 'Keine',
+    quarters: 'Quartale',
+    months: 'Monate',
+    weeks: 'Wochen',
+    todayMarker: 'Heute-Marker anzeigen',
+    progressFill: 'Fortschritt füllen',
+    markers: 'Marker',
+    addMarker: 'Marker hinzufügen',
+    editMarker: 'Marker bearbeiten',
+    back: 'Zurück',
+    entity: 'Entität',
+    label: 'Bezeichnung',
+    labelHelper: 'Leer = Entity-Name verwenden',
+    type: 'Typ',
+    point: 'Punkt',
+    rangeStart: 'Bereich Start',
+    rangeEnd: 'Bereich Ende',
+    showOnBar: 'Auf Balken anzeigen',
+    showInList: 'In Liste anzeigen',
+    noMarkers: 'Keine Marker konfiguriert',
+  },
+  en: {
+    general: 'General',
+    title: 'Title',
+    titleHelper: 'Optional card title',
+    locale: 'Language',
+    german: 'German',
+    english: 'English',
+    facts: 'Facts',
+    bar: 'Timeline Bar',
+    segments: 'Segment Lines',
+    barLabels: 'Labels',
+    none: 'None',
+    quarters: 'Quarters',
+    months: 'Months',
+    weeks: 'Weeks',
+    todayMarker: 'Show Today Marker',
+    progressFill: 'Show Progress Fill',
+    markers: 'Markers',
+    addMarker: 'Add Marker',
+    editMarker: 'Edit Marker',
+    back: 'Back',
+    entity: 'Entity',
+    label: 'Label',
+    labelHelper: 'Empty = use entity name',
+    type: 'Type',
+    point: 'Point',
+    rangeStart: 'Range Start',
+    rangeEnd: 'Range End',
+    showOnBar: 'Show on Bar',
+    showInList: 'Show in List',
+    noMarkers: 'No markers configured',
+  },
+};
+
+// ============================================================================
+// Editor Component
+// ============================================================================
+
 @customElement('year-timeline-card-editor')
 export class YearTimelineCardEditor extends LitElement {
   @property({ attribute: false })
@@ -75,58 +172,24 @@ export class YearTimelineCardEditor extends LitElement {
   @state()
   private _config?: EditorConfig;
 
-  static override styles = css`
+  @state()
+  private _editingMarkerIndex: number | null = null;
+
+  static override styles: CSSResultGroup = css`
     .editor-container {
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      padding: 16px 0;
     }
 
-    .section {
-      border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 8px;
-      padding: 16px;
+    ha-expansion-panel {
+      margin-bottom: 4px;
     }
 
-    .section-title {
-      font-weight: 500;
-      margin-bottom: 12px;
-      color: var(--primary-text-color);
+    .content {
+      padding: 12px;
     }
 
-    .form-row {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: 12px;
-    }
-
-    .form-row:last-child {
-      margin-bottom: 0;
-    }
-
-    .form-row label {
-      font-size: 0.9em;
-      color: var(--secondary-text-color);
-    }
-
-    .form-row input[type='text'],
-    .form-row select {
-      padding: 8px;
-      border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 4px;
-      background: var(--card-background-color, #fff);
-      color: var(--primary-text-color);
-      font-size: 1em;
-    }
-
-    .form-row input[type='text']:focus,
-    .form-row select:focus {
-      outline: none;
-      border-color: var(--primary-color);
-    }
-
+    /* Facts checkboxes */
     .checkbox-group {
       display: flex;
       flex-wrap: wrap;
@@ -136,18 +199,100 @@ export class YearTimelineCardEditor extends LitElement {
     .checkbox-item {
       display: flex;
       align-items: center;
-      gap: 6px;
-    }
-
-    .checkbox-item input[type='checkbox'] {
-      width: 18px;
-      height: 18px;
+      gap: 8px;
       cursor: pointer;
     }
 
-    .checkbox-item label {
-      cursor: pointer;
-      font-size: 0.9em;
+    .checkbox-item ha-checkbox {
+      --mdc-checkbox-unchecked-color: var(--secondary-text-color);
+    }
+
+    /* Marker list */
+    .marker-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .marker-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--secondary-background-color);
+      border-radius: 8px;
+    }
+
+    .marker-row .handle {
+      cursor: grab;
+      color: var(--secondary-text-color);
+    }
+
+    .marker-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .marker-name {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .marker-entity {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .marker-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .no-markers {
+      padding: 16px;
+      text-align: center;
+      color: var(--secondary-text-color);
+      font-style: italic;
+    }
+
+
+    /* Sub-editor (marker detail) */
+    .sub-editor {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sub-editor-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--divider-color);
+      margin-bottom: 16px;
+    }
+
+    .sub-editor-title {
+      flex: 1;
+      font-weight: 500;
+      font-size: 1.1em;
+    }
+
+    .form-row {
+      margin-bottom: 16px;
+    }
+
+    .form-row:last-child {
+      margin-bottom: 0;
+    }
+
+    ha-textfield,
+    ha-select {
+      width: 100%;
     }
 
     .switch-row {
@@ -157,95 +302,8 @@ export class YearTimelineCardEditor extends LitElement {
       padding: 8px 0;
     }
 
-    .switch-row label {
+    .switch-row span {
       color: var(--primary-text-color);
-    }
-
-    ha-switch {
-      --mdc-theme-secondary: var(--primary-color);
-    }
-
-    .marker-item {
-      border: 1px solid var(--divider-color, #e0e0e0);
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 12px;
-      background: var(--secondary-background-color, #f5f5f5);
-    }
-
-    .marker-item:last-child {
-      margin-bottom: 0;
-    }
-
-    .marker-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .marker-number {
-      font-weight: 500;
-      font-size: 0.9em;
-      color: var(--primary-text-color);
-    }
-
-    .marker-delete {
-      background: none;
-      border: none;
-      color: var(--error-color, #db4437);
-      cursor: pointer;
-      padding: 4px 8px;
-      font-size: 0.85em;
-      border-radius: 4px;
-    }
-
-    .marker-delete:hover {
-      background: var(--error-color, #db4437);
-      color: white;
-    }
-
-    .marker-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .marker-grid .form-row {
-      margin-bottom: 0;
-    }
-
-    .marker-grid .full-width {
-      grid-column: 1 / -1;
-    }
-
-    .marker-switches {
-      display: flex;
-      gap: 16px;
-      margin-top: 8px;
-    }
-
-    .marker-switches .switch-row {
-      padding: 4px 0;
-      flex: 1;
-    }
-
-    .add-marker-btn {
-      width: 100%;
-      padding: 10px;
-      border: 2px dashed var(--divider-color, #e0e0e0);
-      border-radius: 6px;
-      background: none;
-      color: var(--primary-color);
-      cursor: pointer;
-      font-size: 0.9em;
-      transition: all 0.2s;
-    }
-
-    .add-marker-btn:hover {
-      border-color: var(--primary-color);
-      background: var(--primary-color);
-      color: white;
     }
   `;
 
@@ -253,300 +311,281 @@ export class YearTimelineCardEditor extends LitElement {
     this._config = config;
   }
 
+  private _getLocale(): string {
+    return this._config?.locale ?? 'de';
+  }
+
+  private _getLabels(): (typeof LABELS)['de'] {
+    const locale = this._getLocale();
+    return LABELS[locale as keyof typeof LABELS] ?? LABELS.de;
+  }
+
   override render(): TemplateResult {
     if (!this._config) {
       return html``;
     }
 
-    const locale = this._config.locale ?? 'de';
+    // If editing a marker, show sub-editor
+    if (this._editingMarkerIndex !== null) {
+      return this._renderMarkerSubEditor();
+    }
 
     return html`
       <div class="editor-container">
-        ${this._renderGeneralSection(locale)}
-        ${this._renderFactsSection(locale)}
-        ${this._renderBarSection(locale)}
-        ${this._renderMarkersSection(locale)}
+        ${this._renderGeneralSection()}
+        ${this._renderFactsSection()}
+        ${this._renderBarSection()}
+        ${this._renderMarkersSection()}
       </div>
     `;
   }
 
-  private _renderGeneralSection(locale: string): TemplateResult {
-    const labels =
-      locale === 'en'
-        ? { title: 'Title', locale: 'Language', german: 'German', english: 'English' }
-        : { title: 'Titel', locale: 'Sprache', german: 'Deutsch', english: 'Englisch' };
+  // ==========================================================================
+  // General Section
+  // ==========================================================================
+
+  private _renderGeneralSection(): TemplateResult {
+    const l = this._getLabels();
+    const locale = this._getLocale();
 
     return html`
-      <div class="section">
-        <div class="section-title">${locale === 'en' ? 'General' : 'Allgemein'}</div>
-
-        <div class="form-row">
-          <label>${labels.title}</label>
-          <input
-            type="text"
-            .value=${this._config?.title ?? ''}
-            @input=${this._onTitleChange}
-            placeholder="${locale === 'en' ? 'Optional title' : 'Optionaler Titel'}"
-          />
+      <ha-expansion-panel outlined .header=${l.general}>
+        <div class="content">
+          <div class="form-row">
+            <ha-textfield
+              .label=${l.title}
+              .helper=${l.titleHelper}
+              .value=${this._config?.title ?? ''}
+              @input=${this._onTitleChange}
+            ></ha-textfield>
+          </div>
+          <div class="form-row">
+            <ha-select
+              .label=${l.locale}
+              .value=${locale}
+              @selected=${this._onLocaleChange}
+              @closed=${(e: Event): void => e.stopPropagation()}
+            >
+              <mwc-list-item value="de">${l.german}</mwc-list-item>
+              <mwc-list-item value="en">${l.english}</mwc-list-item>
+            </ha-select>
+          </div>
         </div>
-
-        <div class="form-row">
-          <label>${labels.locale}</label>
-          <select .value=${this._config?.locale ?? 'de'} @change=${this._onLocaleChange}>
-            <option value="de">${labels.german}</option>
-            <option value="en">${labels.english}</option>
-          </select>
-        </div>
-      </div>
+      </ha-expansion-panel>
     `;
   }
 
-  private _renderFactsSection(locale: string): TemplateResult {
-    const factLabels = FACT_LABELS[locale] ?? FACT_LABELS['de']!;
-    const currentFacts = this._config?.facts?.show ?? [
-      'year',
-      'dayOfYear',
-      'isoWeek',
-      'quarter',
-    ];
+  // ==========================================================================
+  // Facts Section
+  // ==========================================================================
+
+  private _renderFactsSection(): TemplateResult {
+    const l = this._getLabels();
+    const locale = this._getLocale();
+    const factLabels = FACT_LABELS[locale] ?? FACT_LABELS.de!;
+    const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
 
     return html`
-      <div class="section">
-        <div class="section-title">${locale === 'en' ? 'Facts' : 'Kennzahlen'}</div>
-
-        <div class="checkbox-group">
-          ${ALL_FACTS.map(
-            (fact) => html`
-              <div class="checkbox-item">
-                <input
-                  type="checkbox"
-                  id="fact-${fact}"
-                  .checked=${currentFacts.includes(fact)}
-                  @change=${(e: Event): void => this._onFactToggle(fact, e)}
-                />
-                <label for="fact-${fact}">${factLabels[fact]}</label>
-              </div>
-            `
-          )}
+      <ha-expansion-panel outlined .header=${l.facts}>
+        <div class="content">
+          <div class="checkbox-group">
+            ${ALL_FACTS.map(
+              (fact) => html`
+                <label class="checkbox-item">
+                  <ha-checkbox
+                    .checked=${currentFacts.includes(fact)}
+                    @change=${(e: Event): void => this._onFactToggle(fact, e)}
+                  ></ha-checkbox>
+                  <span>${factLabels[fact]}</span>
+                </label>
+              `
+            )}
+          </div>
         </div>
-      </div>
+      </ha-expansion-panel>
     `;
   }
 
-  private _renderBarSection(locale: string): TemplateResult {
-    const labels =
-      locale === 'en'
-        ? {
-            title: 'Timeline Bar',
-            segments: 'Segment Lines',
-            labels: 'Labels',
-            none: 'None',
-            quarters: 'Quarters',
-            months: 'Months',
-            weeks: 'Weeks',
-            todayMarker: 'Show Today Marker',
-            progressFill: 'Show Progress Fill',
-          }
-        : {
-            title: 'Zeitstrahl',
-            segments: 'Segment-Linien',
-            labels: 'Beschriftung',
-            none: 'Keine',
-            quarters: 'Quartale',
-            months: 'Monate',
-            weeks: 'Wochen',
-            todayMarker: 'Heute-Marker anzeigen',
-            progressFill: 'Fortschritt füllen',
-          };
+  // ==========================================================================
+  // Bar Section
+  // ==========================================================================
 
+  private _renderBarSection(): TemplateResult {
+    const l = this._getLabels();
     const bar = this._config?.bar ?? {};
 
     return html`
-      <div class="section">
-        <div class="section-title">${labels.title}</div>
-
-        <div class="form-row">
-          <label>${labels.segments}</label>
-          <select .value=${bar.segments ?? 'months'} @change=${this._onSegmentsChange}>
-            <option value="none">${labels.none}</option>
-            <option value="quarters">${labels.quarters}</option>
-            <option value="months">${labels.months}</option>
-            <option value="weeks">${labels.weeks}</option>
-          </select>
+      <ha-expansion-panel outlined .header=${l.bar}>
+        <div class="content">
+          <div class="form-row">
+            <ha-select
+              .label=${l.segments}
+              .value=${bar.segments ?? 'months'}
+              @selected=${this._onSegmentsChange}
+              @closed=${(e: Event): void => e.stopPropagation()}
+            >
+              <mwc-list-item value="none">${l.none}</mwc-list-item>
+              <mwc-list-item value="quarters">${l.quarters}</mwc-list-item>
+              <mwc-list-item value="months">${l.months}</mwc-list-item>
+              <mwc-list-item value="weeks">${l.weeks}</mwc-list-item>
+            </ha-select>
+          </div>
+          <div class="form-row">
+            <ha-select
+              .label=${l.barLabels}
+              .value=${bar.labels ?? 'quarters'}
+              @selected=${this._onLabelsChange}
+              @closed=${(e: Event): void => e.stopPropagation()}
+            >
+              <mwc-list-item value="none">${l.none}</mwc-list-item>
+              <mwc-list-item value="quarters">${l.quarters}</mwc-list-item>
+              <mwc-list-item value="months">${l.months}</mwc-list-item>
+            </ha-select>
+          </div>
+          <div class="switch-row">
+            <span>${l.todayMarker}</span>
+            <ha-switch
+              .checked=${bar.show_today_marker ?? true}
+              @change=${this._onTodayMarkerChange}
+            ></ha-switch>
+          </div>
+          <div class="switch-row">
+            <span>${l.progressFill}</span>
+            <ha-switch
+              .checked=${bar.show_progress_fill ?? true}
+              @change=${this._onProgressFillChange}
+            ></ha-switch>
+          </div>
         </div>
-
-        <div class="form-row">
-          <label>${labels.labels}</label>
-          <select .value=${bar.labels ?? 'quarters'} @change=${this._onLabelsChange}>
-            <option value="none">${labels.none}</option>
-            <option value="quarters">${labels.quarters}</option>
-            <option value="months">${labels.months}</option>
-          </select>
-        </div>
-
-        <div class="switch-row">
-          <label>${labels.todayMarker}</label>
-          <ha-switch
-            .checked=${bar.show_today_marker ?? true}
-            @change=${this._onTodayMarkerChange}
-          ></ha-switch>
-        </div>
-
-        <div class="switch-row">
-          <label>${labels.progressFill}</label>
-          <ha-switch
-            .checked=${bar.show_progress_fill ?? true}
-            @change=${this._onProgressFillChange}
-          ></ha-switch>
-        </div>
-      </div>
+      </ha-expansion-panel>
     `;
   }
 
-  private _renderMarkersSection(locale: string): TemplateResult {
-    const labels =
-      locale === 'en'
-        ? {
-            title: 'Markers',
-            entity: 'Entity',
-            label: 'Label (optional)',
-            labelPlaceholder: 'Uses entity name if empty',
-            type: 'Type',
-            point: 'Point',
-            rangeStart: 'Range Start',
-            rangeEnd: 'Range End',
-            showOnBar: 'Show on Bar',
-            showInList: 'Show in List',
-            addMarker: '+ Add Marker',
-            delete: 'Delete',
-            marker: 'Marker',
-          }
-        : {
-            title: 'Marker',
-            entity: 'Entität',
-            label: 'Bezeichnung (optional)',
-            labelPlaceholder: 'Verwendet Entity-Name wenn leer',
-            type: 'Typ',
-            point: 'Punkt',
-            rangeStart: 'Bereich Start',
-            rangeEnd: 'Bereich Ende',
-            showOnBar: 'Auf Balken',
-            showInList: 'In Liste',
-            addMarker: '+ Marker hinzufügen',
-            delete: 'Löschen',
-            marker: 'Marker',
-          };
+  // ==========================================================================
+  // Markers Section
+  // ==========================================================================
 
+  private _renderMarkersSection(): TemplateResult {
+    const l = this._getLabels();
     const markers = this._config?.markers ?? [];
 
     return html`
-      <div class="section">
-        <div class="section-title">${labels.title}</div>
+      <ha-expansion-panel outlined .header=${l.markers}>
+        <div class="content">
+          ${markers.length === 0
+            ? html`<div class="no-markers">${l.noMarkers}</div>`
+            : html`
+                <div class="marker-list">
+                  ${markers.map((marker, index) => this._renderMarkerRow(marker, index))}
+                </div>
+              `}
 
-        ${markers.map((marker, index) => this._renderMarkerItem(marker, index, labels))}
-
-        <button class="add-marker-btn" @click=${this._onAddMarker}>
-          ${labels.addMarker}
-        </button>
-      </div>
+        </div>
+      </ha-expansion-panel>
     `;
   }
 
-  private _renderMarkerItem(
-    marker: MarkerEditorConfig,
-    index: number,
-    labels: Record<string, string>
-  ): TemplateResult {
-    // Get entity list from hass, filtered to date/timestamp entities only
-    const entities = this.hass
-      ? Object.entries(this.hass.states)
-          .filter(([entityId, state]) => {
-            const domain = entityId.split('.')[0];
-            // Always include input_datetime
-            if (domain === 'input_datetime') {
-              return true;
-            }
-            // Check for device_class: timestamp or date
-            const stateObj = state as { attributes?: { device_class?: string } } | undefined;
-            const deviceClass = stateObj?.attributes?.device_class;
-            return deviceClass === 'timestamp' || deviceClass === 'date';
-          })
-          .map(([entityId]) => entityId)
-          .sort()
-      : [];
+  private _renderMarkerRow(marker: MarkerEditorConfig, index: number): TemplateResult {
+    const entity = this.hass?.states[marker.entity];
+    const friendlyName = entity?.attributes.friendly_name ?? marker.entity;
+    const displayName = marker.label || friendlyName;
 
     return html`
-      <div class="marker-item">
-        <div class="marker-header">
-          <span class="marker-number">${labels.marker} ${index + 1}</span>
-          <button
-            class="marker-delete"
+      <div class="marker-row">
+        <ha-icon class="handle" icon="mdi:drag"></ha-icon>
+        <ha-icon
+          icon=${entity?.attributes.icon ?? 'mdi:calendar'}
+        ></ha-icon>
+        <div class="marker-info">
+          <div class="marker-name">${displayName}</div>
+          <div class="marker-entity">${marker.entity}</div>
+        </div>
+        <div class="marker-actions">
+          <ha-icon-button
+            .path=${'M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'}
+            @click=${(): void => this._onEditMarker(index)}
+          ></ha-icon-button>
+          <ha-icon-button
+            .path=${'M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z'}
             @click=${(): void => this._onDeleteMarker(index)}
-          >
-            ${labels.delete}
-          </button>
-        </div>
-
-        <div class="marker-grid">
-          <div class="form-row full-width">
-            <label>${labels.entity}</label>
-            <select
-              .value=${marker.entity ?? ''}
-              @change=${(e: Event): void => this._onMarkerFieldChange(index, 'entity', e)}
-            >
-              <option value="">--</option>
-              ${entities.map(
-                (entity) => html`
-                  <option value=${entity} ?selected=${entity === marker.entity}>
-                    ${entity}
-                  </option>
-                `
-              )}
-            </select>
-          </div>
-
-          <div class="form-row">
-            <label>${labels.label}</label>
-            <input
-              type="text"
-              .value=${marker.label ?? ''}
-              @input=${(e: Event): void => this._onMarkerFieldChange(index, 'label', e)}
-              placeholder="${labels.labelPlaceholder}"
-            />
-          </div>
-
-          <div class="form-row">
-            <label>${labels.type}</label>
-            <select
-              .value=${marker.type ?? 'point'}
-              @change=${(e: Event): void => this._onMarkerFieldChange(index, 'type', e)}
-            >
-              <option value="point">${labels.point}</option>
-              <option value="rangeStart">${labels.rangeStart}</option>
-              <option value="rangeEnd">${labels.rangeEnd}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="marker-switches">
-          <div class="switch-row">
-            <label>${labels.showOnBar}</label>
-            <ha-switch
-              .checked=${marker.showOnBar ?? true}
-              @change=${(e: Event): void => this._onMarkerSwitchChange(index, 'showOnBar', e)}
-            ></ha-switch>
-          </div>
-          <div class="switch-row">
-            <label>${labels.showInList}</label>
-            <ha-switch
-              .checked=${marker.showInList ?? false}
-              @change=${(e: Event): void => this._onMarkerSwitchChange(index, 'showInList', e)}
-            ></ha-switch>
-          </div>
+          ></ha-icon-button>
         </div>
       </div>
     `;
   }
+
+  // ==========================================================================
+  // Marker Sub-Editor
+  // ==========================================================================
+
+  private _renderMarkerSubEditor(): TemplateResult {
+    const l = this._getLabels();
+    const index = this._editingMarkerIndex!;
+    const marker = this._config?.markers?.[index];
+
+    if (!marker) {
+      this._editingMarkerIndex = null;
+      return html``;
+    }
+
+    const entity = this.hass?.states[marker.entity];
+    const friendlyName = entity?.attributes.friendly_name ?? marker.entity;
+
+    return html`
+      <div class="sub-editor">
+        <div class="sub-editor-header">
+          <ha-icon-button
+            .path=${'M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z'}
+            @click=${this._onBackFromSubEditor}
+          ></ha-icon-button>
+          <span class="sub-editor-title">${l.editMarker}: ${friendlyName}</span>
+        </div>
+
+        <div class="form-row">
+          <ha-textfield
+            .label=${l.label}
+            .helper=${l.labelHelper}
+            .value=${marker.label ?? ''}
+            .placeholder=${friendlyName}
+            @input=${(e: Event): void => this._onMarkerFieldChange('label', e)}
+          ></ha-textfield>
+        </div>
+
+        <div class="form-row">
+          <ha-select
+            .label=${l.type}
+            .value=${marker.type ?? 'point'}
+            @selected=${(e: CustomEvent): void => this._onMarkerTypeChange(e)}
+            @closed=${(e: Event): void => e.stopPropagation()}
+          >
+            <mwc-list-item value="point">${l.point}</mwc-list-item>
+            <mwc-list-item value="rangeStart">${l.rangeStart}</mwc-list-item>
+            <mwc-list-item value="rangeEnd">${l.rangeEnd}</mwc-list-item>
+          </ha-select>
+        </div>
+
+        <div class="switch-row">
+          <span>${l.showOnBar}</span>
+          <ha-switch
+            .checked=${marker.showOnBar ?? true}
+            @change=${(e: Event): void => this._onMarkerSwitchChange('showOnBar', e)}
+          ></ha-switch>
+        </div>
+
+        <div class="switch-row">
+          <span>${l.showInList}</span>
+          <ha-switch
+            .checked=${marker.showInList ?? false}
+            @change=${(e: Event): void => this._onMarkerSwitchChange('showInList', e)}
+          ></ha-switch>
+        </div>
+      </div>
+    `;
+  }
+
+  // ==========================================================================
+  // Event Handlers - General
+  // ==========================================================================
 
   private _onTitleChange = (e: Event): void => {
     const target = e.target as HTMLInputElement;
@@ -559,26 +598,26 @@ export class YearTimelineCardEditor extends LitElement {
     this._updateConfig(newConfig);
   };
 
-  private _onLocaleChange = (e: Event): void => {
-    const target = e.target as HTMLSelectElement;
-    this._updateConfig({
-      ...this._config!,
-      locale: target.value,
-    });
+  private _onLocaleChange = (e: CustomEvent): void => {
+    const value = (e.target as HTMLSelectElement).value;
+    if (value) {
+      this._updateConfig({
+        ...this._config!,
+        locale: value,
+      });
+    }
   };
+
+  // ==========================================================================
+  // Event Handlers - Facts
+  // ==========================================================================
 
   private _onFactToggle(fact: FactType, e: Event): void {
     const target = e.target as HTMLInputElement;
-    const currentFacts = this._config?.facts?.show ?? [
-      'year',
-      'dayOfYear',
-      'isoWeek',
-      'quarter',
-    ];
+    const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
 
     let newFacts: FactType[];
     if (target.checked) {
-      // Add fact, maintain order based on ALL_FACTS
       newFacts = ALL_FACTS.filter((f) => currentFacts.includes(f) || f === fact);
     } else {
       newFacts = currentFacts.filter((f) => f !== fact);
@@ -590,36 +629,35 @@ export class YearTimelineCardEditor extends LitElement {
     });
   }
 
-  private _onSegmentsChange = (e: Event): void => {
-    const target = e.target as HTMLSelectElement;
-    this._updateConfig({
-      ...this._config!,
-      bar: {
-        ...this._config?.bar,
-        segments: target.value as SegmentType,
-      },
-    });
+  // ==========================================================================
+  // Event Handlers - Bar
+  // ==========================================================================
+
+  private _onSegmentsChange = (e: CustomEvent): void => {
+    const value = (e.target as HTMLSelectElement).value as SegmentType;
+    if (value) {
+      this._updateConfig({
+        ...this._config!,
+        bar: { ...this._config?.bar, segments: value },
+      });
+    }
   };
 
-  private _onLabelsChange = (e: Event): void => {
-    const target = e.target as HTMLSelectElement;
-    this._updateConfig({
-      ...this._config!,
-      bar: {
-        ...this._config?.bar,
-        labels: target.value as LabelType,
-      },
-    });
+  private _onLabelsChange = (e: CustomEvent): void => {
+    const value = (e.target as HTMLSelectElement).value as LabelType;
+    if (value) {
+      this._updateConfig({
+        ...this._config!,
+        bar: { ...this._config?.bar, labels: value },
+      });
+    }
   };
 
   private _onTodayMarkerChange = (e: Event): void => {
     const target = e.target as HTMLInputElement;
     this._updateConfig({
       ...this._config!,
-      bar: {
-        ...this._config?.bar,
-        show_today_marker: target.checked,
-      },
+      bar: { ...this._config?.bar, show_today_marker: target.checked },
     });
   };
 
@@ -627,26 +665,17 @@ export class YearTimelineCardEditor extends LitElement {
     const target = e.target as HTMLInputElement;
     this._updateConfig({
       ...this._config!,
-      bar: {
-        ...this._config?.bar,
-        show_progress_fill: target.checked,
-      },
+      bar: { ...this._config?.bar, show_progress_fill: target.checked },
     });
   };
 
-  private _onAddMarker = (): void => {
-    const markers = [...(this._config?.markers ?? [])];
-    markers.push({
-      entity: '',
-      type: 'point',
-      showOnBar: true,
-      showInList: false,
-    });
-    this._updateConfig({
-      ...this._config!,
-      markers,
-    });
-  };
+  // ==========================================================================
+  // Event Handlers - Markers
+  // ==========================================================================
+
+  private _onEditMarker(index: number): void {
+    this._editingMarkerIndex = index;
+  }
 
   private _onDeleteMarker(index: number): void {
     const markers = [...(this._config?.markers ?? [])];
@@ -657,15 +686,34 @@ export class YearTimelineCardEditor extends LitElement {
     });
   }
 
-  private _onMarkerFieldChange(index: number, field: keyof MarkerEditorConfig, e: Event): void {
-    const target = e.target as HTMLInputElement | HTMLSelectElement;
+  private _onBackFromSubEditor = (): void => {
+    this._editingMarkerIndex = null;
+  };
+
+  private _onMarkerFieldChange(field: 'label', e: Event): void {
+    const target = e.target as HTMLInputElement;
+    this._updateMarker({ [field]: target.value || undefined });
+  }
+
+  private _onMarkerTypeChange(e: CustomEvent): void {
+    const value = (e.target as HTMLSelectElement).value as MarkerType;
+    if (value) {
+      this._updateMarker({ type: value });
+    }
+  }
+
+  private _onMarkerSwitchChange(field: 'showOnBar' | 'showInList', e: Event): void {
+    const target = e.target as HTMLInputElement;
+    this._updateMarker({ [field]: target.checked });
+  }
+
+  private _updateMarker(updates: Partial<MarkerEditorConfig>): void {
+    if (this._editingMarkerIndex === null) return;
+
     const markers = [...(this._config?.markers ?? [])];
-    const marker = markers[index];
+    const marker = markers[this._editingMarkerIndex];
     if (marker) {
-      markers[index] = {
-        ...marker,
-        [field]: target.value,
-      };
+      markers[this._editingMarkerIndex] = { ...marker, ...updates };
       this._updateConfig({
         ...this._config!,
         markers,
@@ -673,21 +721,9 @@ export class YearTimelineCardEditor extends LitElement {
     }
   }
 
-  private _onMarkerSwitchChange(index: number, field: 'showOnBar' | 'showInList', e: Event): void {
-    const target = e.target as HTMLInputElement;
-    const markers = [...(this._config?.markers ?? [])];
-    const marker = markers[index];
-    if (marker) {
-      markers[index] = {
-        ...marker,
-        [field]: target.checked,
-      };
-      this._updateConfig({
-        ...this._config!,
-        markers,
-      });
-    }
-  }
+  // ==========================================================================
+  // Config Update
+  // ==========================================================================
 
   private _updateConfig(config: EditorConfig): void {
     this._config = config;
