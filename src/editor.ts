@@ -161,6 +161,24 @@ const LABELS = {
 };
 
 // ============================================================================
+// Lazy-load HA Components
+// ============================================================================
+
+// Load card helpers to make ha-entity-picker available
+const loadCardHelpers = async (): Promise<void> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const helpers = await (window as any).loadCardHelpers?.();
+  if (helpers) {
+    // Create an entities card and load its editor to register ha-entity-picker
+    const card = await helpers.createCardElement({ type: 'entities', entities: [] });
+    await card.constructor.getConfigElement?.();
+  }
+};
+
+// Start loading immediately
+loadCardHelpers();
+
+// ============================================================================
 // Editor Component
 // ============================================================================
 
@@ -174,6 +192,9 @@ export class YearTimelineCardEditor extends LitElement {
 
   @state()
   private _editingMarkerIndex: number | null = null;
+
+  @state()
+  private _helpersLoaded = false;
 
   static override styles: CSSResultGroup = css`
     .card-config {
@@ -316,6 +337,13 @@ export class YearTimelineCardEditor extends LitElement {
     this._config = config;
   }
 
+  override async connectedCallback(): Promise<void> {
+    super.connectedCallback();
+    // Ensure card helpers are loaded for ha-entity-picker
+    await loadCardHelpers();
+    this._helpersLoaded = true;
+  }
+
   private _getLocale(): string {
     return this._config?.locale ?? 'de';
   }
@@ -326,7 +354,7 @@ export class YearTimelineCardEditor extends LitElement {
   }
 
   override render(): TemplateResult {
-    if (!this._config) {
+    if (!this._config || !this._helpersLoaded) {
       return html``;
     }
 
@@ -412,13 +440,21 @@ export class YearTimelineCardEditor extends LitElement {
         </div>
 
         <!-- Markers list -->
-        ${markers.length === 0
-          ? html`<div class="no-markers">${l.noMarkers}</div>`
-          : html`
+        ${markers.length > 0
+          ? html`
               <div class="marker-list">
                 ${markers.map((marker, index) => this._renderMarkerRow(marker, index))}
               </div>
-            `}
+            `
+          : nothing}
+
+        <!-- Add marker button -->
+        <ha-entity-picker
+          .hass=${this.hass}
+          .entityFilter=${this._entityFilter}
+          @value-changed=${this._onAddMarkerEntity}
+          add-button
+        ></ha-entity-picker>
       </div>
     `;
   }
@@ -614,6 +650,43 @@ export class YearTimelineCardEditor extends LitElement {
   // ==========================================================================
   // Event Handlers - Markers
   // ==========================================================================
+
+  private _entityFilter = (entity: HassEntity): boolean => {
+    const entityId = entity.entity_id;
+    const domain = entityId.split('.')[0];
+
+    // Always include input_datetime
+    if (domain === 'input_datetime') {
+      return true;
+    }
+
+    // Check for device_class: timestamp or date
+    const deviceClass = entity.attributes?.device_class;
+    return deviceClass === 'timestamp' || deviceClass === 'date';
+  };
+
+  private _onAddMarkerEntity = (e: CustomEvent): void => {
+    const entityId = e.detail.value;
+    if (!entityId) {
+      return;
+    }
+
+    const markers = [...(this._config?.markers ?? [])];
+    markers.push({
+      entity: entityId,
+      type: 'point',
+      showOnBar: true,
+      showInList: false,
+    });
+
+    this._updateConfig({
+      ...this._config!,
+      markers,
+    });
+
+    // Open sub-editor for the new marker
+    this._editingMarkerIndex = markers.length - 1;
+  };
 
   private _onEditMarker(index: number): void {
     this._editingMarkerIndex = index;
