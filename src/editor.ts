@@ -51,13 +51,6 @@ interface HassEntity {
   };
 }
 
-interface HaFormSchema {
-  name: string;
-  selector?: Record<string, unknown>;
-  required?: boolean;
-  default?: unknown;
-}
-
 // ============================================================================
 // Constants
 // ============================================================================
@@ -125,6 +118,7 @@ const LABELS = {
     showOnBar: 'Auf Balken anzeigen',
     showInList: 'In Liste anzeigen',
     noMarkers: 'Keine Marker konfiguriert',
+    addFact: 'Kennzahl hinzufügen',
   },
   en: {
     general: 'General',
@@ -157,6 +151,7 @@ const LABELS = {
     showOnBar: 'Show on Bar',
     showInList: 'Show in List',
     noMarkers: 'No markers configured',
+    addFact: 'Add fact',
   },
 };
 
@@ -210,22 +205,9 @@ export class YearTimelineCardEditor extends LitElement {
       padding: 12px;
     }
 
-    /* Facts checkboxes */
-    .checkbox-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 16px;
-    }
-
-    .checkbox-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-    }
-
-    .checkbox-item ha-checkbox {
-      --mdc-checkbox-unchecked-color: var(--secondary-text-color);
+    /* Facts chips */
+    ha-chip-set {
+      margin-bottom: 8px;
     }
 
     /* Marker list */
@@ -413,23 +395,40 @@ export class YearTimelineCardEditor extends LitElement {
     const locale = this._getLocale();
     const factLabels = FACT_LABELS[locale] ?? FACT_LABELS.de!;
     const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
+    const availableFacts = ALL_FACTS.filter((f) => !currentFacts.includes(f));
 
     return html`
       <ha-expansion-panel outlined .header=${l.facts}>
         <div class="content">
-          <div class="checkbox-group">
-            ${ALL_FACTS.map(
-              (fact) => html`
-                <label class="checkbox-item">
-                  <ha-checkbox
-                    .checked=${currentFacts.includes(fact)}
-                    @change=${(e: Event): void => this._onFactToggle(fact, e)}
-                  ></ha-checkbox>
-                  <span>${factLabels[fact]}</span>
-                </label>
+          ${currentFacts.length > 0
+            ? html`
+                <ha-chip-set>
+                  ${currentFacts.map(
+                    (fact) => html`
+                      <ha-input-chip
+                        .label=${factLabels[fact]}
+                        @remove=${(): void => this._onRemoveFact(fact)}
+                      ></ha-input-chip>
+                    `
+                  )}
+                </ha-chip-set>
               `
-            )}
-          </div>
+            : nothing}
+          ${availableFacts.length > 0
+            ? html`
+                <ha-select
+                  .label=${l.addFact}
+                  @selected=${this._onAddFact}
+                  @closed=${(e: Event): void => e.stopPropagation()}
+                >
+                  ${availableFacts.map(
+                    (fact) => html`
+                      <mwc-list-item .value=${fact}>${factLabels[fact]}</mwc-list-item>
+                    `
+                  )}
+                </ha-select>
+              `
+            : nothing}
         </div>
       </ha-expansion-panel>
     `;
@@ -651,16 +650,28 @@ export class YearTimelineCardEditor extends LitElement {
   // Event Handlers - Facts
   // ==========================================================================
 
-  private _onFactToggle(fact: FactType, e: Event): void {
-    const target = e.target as HTMLInputElement;
-    const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
+  private _onAddFact = (e: CustomEvent): void => {
+    const fact = (e.target as HTMLSelectElement).value as FactType;
+    if (!fact) return;
 
-    let newFacts: FactType[];
-    if (target.checked) {
-      newFacts = ALL_FACTS.filter((f) => currentFacts.includes(f) || f === fact);
-    } else {
-      newFacts = currentFacts.filter((f) => f !== fact);
-    }
+    const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
+    if (currentFacts.includes(fact)) return;
+
+    // Add fact in the order defined by ALL_FACTS
+    const newFacts = ALL_FACTS.filter((f) => currentFacts.includes(f) || f === fact);
+
+    this._updateConfig({
+      ...this._config!,
+      facts: { show: newFacts },
+    });
+
+    // Reset the select
+    (e.target as HTMLSelectElement).value = '';
+  };
+
+  private _onRemoveFact(fact: FactType): void {
+    const currentFacts = this._config?.facts?.show ?? ['year', 'dayOfYear', 'isoWeek', 'quarter'];
+    const newFacts = currentFacts.filter((f) => f !== fact);
 
     this._updateConfig({
       ...this._config!,
