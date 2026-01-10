@@ -8,6 +8,7 @@ import { css } from 'lit';
 export const cardStyles = css`
   :host {
     display: block;
+    width: 100%;
     --ytc-primary-color: var(--primary-color, #03a9f4);
     --ytc-text-primary: var(--primary-text-color, #212121);
     --ytc-text-secondary: var(--secondary-text-color, #727272);
@@ -16,6 +17,13 @@ export const cardStyles = css`
     --ytc-bar-background: var(--disabled-color, #bdbdbd);
     --ytc-bar-height: 24px;
     --ytc-marker-color: var(--accent-color, #ff9800);
+  }
+
+  ha-card {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .card-header {

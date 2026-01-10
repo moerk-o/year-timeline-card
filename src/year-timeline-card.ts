@@ -85,6 +85,15 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
     return size;
   }
 
+  getGridOptions(): { rows: number; columns: number; min_rows: number; min_columns: number } {
+    return {
+      rows: 2,
+      columns: 12,
+      min_rows: 1,
+      min_columns: 6,
+    };
+  }
+
   static getConfigElement(): HTMLElement {
     return document.createElement('year-timeline-card-editor');
   }
@@ -221,7 +230,7 @@ window.customCards.push({
 
 // Log registration
 console.info(
-  '%c YEAR-TIMELINE-CARD %c v1.0.0 ',
+  '%c YEAR-TIMELINE-CARD %c v1.0.1 ',
   'color: white; background: #03a9f4; font-weight: bold;',
   'color: #03a9f4; background: white; font-weight: bold;'
 );
