@@ -73,7 +73,7 @@ const ALL_FACTS: FactType[] = [
 
 // Predefined colors for the color picker (similar to Mushroom)
 const PRESET_COLORS: { name: string; value: string; labelDe: string; labelEn: string }[] = [
-  { name: 'default', value: '', labelDe: 'Standard', labelEn: 'Default' },
+  { name: 'default', value: 'default', labelDe: 'Standard', labelEn: 'Default' },
   { name: 'red', value: '#f44336', labelDe: 'Rot', labelEn: 'Red' },
   { name: 'pink', value: '#e91e63', labelDe: 'Pink', labelEn: 'Pink' },
   { name: 'purple', value: '#9c27b0', labelDe: 'Lila', labelEn: 'Purple' },
@@ -143,6 +143,7 @@ const LABELS = {
     progressFill: 'Fortschritt füllen',
     progressColor: 'Fortschrittsfarbe',
     progressColorHelper: 'Leer = Standardfarbe',
+    customColor: 'Benutzerdefiniert',
     markers: 'Marker',
     addMarker: 'Marker hinzufügen',
     editMarker: 'Marker bearbeiten',
@@ -185,6 +186,7 @@ const LABELS = {
     progressFill: 'Show Progress Fill',
     progressColor: 'Progress Color',
     progressColorHelper: 'Empty = default color',
+    customColor: 'Custom',
     markers: 'Markers',
     addMarker: 'Add Marker',
     editMarker: 'Edit Marker',
@@ -617,7 +619,7 @@ export class YearTimelineCardEditor extends LitElement {
             <ha-select
               class="color-picker-select"
               .label=${l.progressColor}
-              .value=${bar.progress_color ?? ''}
+              .value=${bar.progress_color ?? 'default'}
               @selected=${this._onProgressColorChange}
               @closed=${(e: Event): void => e.stopPropagation()}
             >
@@ -631,20 +633,47 @@ export class YearTimelineCardEditor extends LitElement {
 
   private _renderColorOptions(): TemplateResult[] {
     const locale = this._getLocale();
-    return PRESET_COLORS.map((color) => {
-      const label = locale === 'de' ? color.labelDe : color.labelEn;
-      const dotClass = color.value === '' ? 'color-dot default' : 'color-dot';
-      const dotStyle = color.value ? `background-color: ${color.value}` : '';
+    const l = this._getLabels();
+    const currentColor = this._config?.bar?.progress_color ?? 'default';
 
-      return html`
-        <mwc-list-item value=${color.value} graphic="icon">
+    // Check if current color is a custom color (not in presets)
+    const isCustomColor =
+      currentColor !== 'default' && !PRESET_COLORS.some((c) => c.value === currentColor);
+
+    const options: TemplateResult[] = [];
+
+    // Add custom color option FIRST if current color is not in presets
+    // This ensures ha-select can find and select it
+    if (isCustomColor) {
+      options.push(html`
+        <mwc-list-item value=${currentColor} .selected=${true} graphic="icon">
+          <span class="color-item">
+            <span class="color-dot" style="background-color: ${currentColor}"></span>
+            ${l.customColor} (${currentColor})
+          </span>
+        </mwc-list-item>
+      `);
+    }
+
+    // Add preset colors
+    PRESET_COLORS.forEach((color) => {
+      const label = locale === 'de' ? color.labelDe : color.labelEn;
+      const isDefault = color.value === 'default';
+      const dotClass = isDefault ? 'color-dot default' : 'color-dot';
+      const dotStyle = !isDefault ? `background-color: ${color.value}` : '';
+      const isSelected = !isCustomColor && color.value === currentColor;
+
+      options.push(html`
+        <mwc-list-item value=${color.value} .selected=${isSelected} graphic="icon">
           <span class="color-item">
             <span class=${dotClass} style=${dotStyle}></span>
             ${label}
           </span>
         </mwc-list-item>
-      `;
+      `);
     });
+
+    return options;
   }
 
   // ==========================================================================
@@ -926,10 +955,10 @@ export class YearTimelineCardEditor extends LitElement {
   private _onProgressColorChange = (e: CustomEvent): void => {
     const value = (e.target as HTMLSelectElement).value;
     const newConfig = { ...this._config! };
-    if (value) {
+    if (value && value !== 'default') {
       newConfig.bar = { ...newConfig.bar, progress_color: value };
     } else {
-      // Remove progress_color if empty (default selected)
+      // Remove progress_color if 'default' selected
       newConfig.bar = { ...newConfig.bar };
       delete newConfig.bar.progress_color;
     }
