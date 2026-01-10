@@ -359,6 +359,10 @@ export class YearTimelineCardEditor extends LitElement {
     }
 
     /* Color picker */
+    .color-picker-select {
+      --mdc-menu-max-height: 300px;
+    }
+
     .color-dot {
       width: 18px;
       height: 18px;
@@ -611,6 +615,7 @@ export class YearTimelineCardEditor extends LitElement {
           </div>
           <div class="form-row">
             <ha-select
+              class="color-picker-select"
               .label=${l.progressColor}
               .value=${bar.progress_color ?? ''}
               @selected=${this._onProgressColorChange}
