@@ -37,6 +37,7 @@ interface MarkerEditorConfig {
   entity: string;
   label?: string;
   type?: MarkerType;
+  color?: string;
   showOnBar?: boolean;
   showInList?: boolean;
 }
@@ -157,6 +158,7 @@ const LABELS = {
     rangeEnd: 'Bereich Ende',
     showOnBar: 'Auf Balken anzeigen',
     showInList: 'In Liste anzeigen',
+    markerColor: 'Marker-Farbe',
     noMarkers: 'Keine Marker konfiguriert',
     addFact: 'Kennzahl hinzufügen',
   },
@@ -200,6 +202,7 @@ const LABELS = {
     rangeEnd: 'Range End',
     showOnBar: 'Show on Bar',
     showInList: 'Show in List',
+    markerColor: 'Marker Color',
     noMarkers: 'No markers configured',
     addFact: 'Add fact',
   },
@@ -680,6 +683,50 @@ export class YearTimelineCardEditor extends LitElement {
     return options;
   }
 
+  private _renderMarkerColorOptions(currentColor?: string): TemplateResult[] {
+    const locale = this._getLocale();
+    const l = this._getLabels();
+    const color = currentColor ?? 'default';
+
+    // Check if current color is a custom color (not in presets)
+    const isCustomColor =
+      color !== 'default' && !PRESET_COLORS.some((c) => c.value === color);
+
+    const options: TemplateResult[] = [];
+
+    // Add custom color option FIRST if current color is not in presets
+    if (isCustomColor) {
+      options.push(html`
+        <mwc-list-item value=${color} .selected=${true} graphic="icon">
+          <span class="color-item">
+            <span class="color-dot" style="background-color: ${color}"></span>
+            ${l.customColor} (${color})
+          </span>
+        </mwc-list-item>
+      `);
+    }
+
+    // Add preset colors
+    PRESET_COLORS.forEach((presetColor) => {
+      const label = locale === 'de' ? presetColor.labelDe : presetColor.labelEn;
+      const isDefault = presetColor.value === 'default';
+      const dotClass = isDefault ? 'color-dot default' : 'color-dot';
+      const dotStyle = !isDefault ? `background-color: ${presetColor.value}` : '';
+      const isSelected = !isCustomColor && presetColor.value === color;
+
+      options.push(html`
+        <mwc-list-item value=${presetColor.value} .selected=${isSelected} graphic="icon">
+          <span class="color-item">
+            <span class=${dotClass} style=${dotStyle}></span>
+            ${label}
+          </span>
+        </mwc-list-item>
+      `);
+    });
+
+    return options;
+  }
+
   // ==========================================================================
   // Markers Section
   // ==========================================================================
@@ -790,6 +837,18 @@ export class YearTimelineCardEditor extends LitElement {
             <mwc-list-item value="point">${l.point}</mwc-list-item>
             <mwc-list-item value="rangeStart">${l.rangeStart}</mwc-list-item>
             <mwc-list-item value="rangeEnd">${l.rangeEnd}</mwc-list-item>
+          </ha-select>
+        </div>
+
+        <div class="form-row">
+          <ha-select
+            class="color-picker-select"
+            .label=${l.markerColor}
+            .value=${marker.color ?? 'default'}
+            @selected=${(e: CustomEvent): void => this._onMarkerColorChange(e)}
+            @closed=${(e: Event): void => e.stopPropagation()}
+          >
+            ${this._renderMarkerColorOptions(marker.color)}
           </ha-select>
         </div>
 
@@ -994,9 +1053,13 @@ export class YearTimelineCardEditor extends LitElement {
     }
 
     const markers = [...(this._config?.markers ?? [])];
+    const newMarkerColor = this._getRandomMarkerColor();
     markers.push({
       entity: entityId,
-      ...DEFAULT_MARKER,
+      type: DEFAULT_MARKER.type,
+      color: newMarkerColor,
+      showOnBar: DEFAULT_MARKER.showOnBar,
+      showInList: DEFAULT_MARKER.showInList,
     });
 
     this._updateConfig({
@@ -1034,6 +1097,16 @@ export class YearTimelineCardEditor extends LitElement {
     }
   }
 
+  private _onMarkerColorChange(e: CustomEvent): void {
+    const value = (e.target as HTMLSelectElement).value;
+    if (value && value !== 'default') {
+      this._updateMarker({ color: value });
+    } else {
+      // Remove color if 'default' selected
+      this._updateMarker({ color: undefined });
+    }
+  }
+
   private _onMarkerSwitchChange(field: 'showOnBar' | 'showInList', e: Event): void {
     const target = e.target as HTMLInputElement;
     this._updateMarker({ [field]: target.checked });
@@ -1065,6 +1138,52 @@ export class YearTimelineCardEditor extends LitElement {
       composed: true,
     });
     this.dispatchEvent(event);
+  }
+
+  // ==========================================================================
+  // Random Color Assignment
+  // ==========================================================================
+
+  /**
+   * Get a random color for a new marker.
+   * Avoids:
+   * 1. The progress fill color (bar.progress_color)
+   * 2. Colors already used by existing markers
+   * If all colors are used, allows reuse but still avoids the progress fill color.
+   */
+  private _getRandomMarkerColor(): string {
+    // Get available preset colors (excluding 'default')
+    const availableColors = PRESET_COLORS.filter((c) => c.value !== 'default').map((c) => c.value);
+
+    // Get the progress fill color to avoid
+    const progressColor = this._config?.bar?.progress_color;
+
+    // Get colors already used by markers
+    const usedColors = new Set<string>();
+    for (const marker of this._config?.markers ?? []) {
+      if (marker.color) {
+        usedColors.add(marker.color);
+      }
+    }
+
+    // Filter out used colors and progress color
+    let candidates = availableColors.filter(
+      (color) => !usedColors.has(color) && color !== progressColor
+    );
+
+    // If all colors are used, allow reuse but still avoid progress color
+    if (candidates.length === 0) {
+      candidates = availableColors.filter((color) => color !== progressColor);
+    }
+
+    // If even that is empty (shouldn't happen), just return first available color
+    if (candidates.length === 0) {
+      return availableColors[0]!;
+    }
+
+    // Pick a random color from candidates
+    const randomIndex = Math.floor(Math.random() * candidates.length);
+    return candidates[randomIndex]!;
   }
 }
 

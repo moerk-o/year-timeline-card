@@ -24,6 +24,7 @@ export interface MarkerConfig {
   label?: string; // optional, falls back to entity friendly_name
   source?: string; // 'state' or 'attribute:<name>', default 'state'
   type?: MarkerType; // default 'point'
+  color?: string; // CSS color for marker
   showOnBar?: boolean; // default true
   showInList?: boolean; // default true
 }
@@ -65,6 +66,7 @@ export interface NormalizedMarkerConfig {
   label: string | null; // null means use entity friendly_name
   source: 'state' | { attribute: string };
   type: MarkerType;
+  color: string | null; // null = use default accent color
   showOnBar: boolean;
   showInList: boolean;
 }
@@ -116,6 +118,7 @@ const DEFAULT_LOCALE = 'auto';
 
 export const DEFAULT_MARKER = {
   type: 'point' as MarkerType,
+  color: null as string | null,
   showOnBar: true,
   showInList: true,
 };
@@ -230,6 +233,7 @@ function normalizeMarker(marker: MarkerConfig): NormalizedMarkerConfig | null {
     label: marker.label?.trim() || null, // null = use friendly_name
     source,
     type,
+    color: marker.color?.trim() || DEFAULT_MARKER.color,
     showOnBar: marker.showOnBar ?? DEFAULT_MARKER.showOnBar,
     showInList: marker.showInList ?? DEFAULT_MARKER.showInList,
   };

@@ -13,6 +13,7 @@ export interface BarMarker {
   position: number; // 0-100
   label: string;
   type: 'point' | 'rangeStart' | 'rangeEnd' | 'range';
+  color: string | null; // null = use default accent color
 }
 
 @customElement('ytc-timeline-bar')
@@ -130,10 +131,12 @@ export class TimelineBar extends LitElement {
       typeClass = 'range-end';
     }
 
+    const colorStyle = marker.color ? `background-color: ${marker.color}` : '';
+
     return html`
       <div
         class="timeline-marker ${typeClass}"
-        style="left: ${clampedPos}%"
+        style="left: ${clampedPos}%; ${colorStyle}"
         title="${marker.label}"
       ></div>
     `;

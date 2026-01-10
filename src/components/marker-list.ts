@@ -46,11 +46,12 @@ export class MarkerList extends LitElement {
 
   private renderMarkerItem(marker: ResolvedMarker): TemplateResult {
     const dateStr = formatMarkerDate(marker.date, this.locale);
+    const dotStyle = marker.color ? `background-color: ${marker.color}` : '';
 
     return html`
       <div class="marker-list-item">
         <div class="marker-list-item-content">
-          <span class="marker-list-item-dot"></span>
+          <span class="marker-list-item-dot" style=${dotStyle}></span>
           <span class="marker-list-item-label">${marker.label}</span>
         </div>
         <span class="marker-list-item-date">${dateStr}</span>

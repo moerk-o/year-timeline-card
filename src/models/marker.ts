@@ -11,6 +11,7 @@ export interface ResolvedMarker {
   date: Date;
   position: number; // 0-100
   type: 'point' | 'rangeStart' | 'rangeEnd' | 'range';
+  color: string | null; // null = use default accent color
   showOnBar: boolean;
   showInList: boolean;
 }
@@ -89,6 +90,7 @@ export function resolveMarker(
     date,
     position,
     type: config.type,
+    color: config.color,
     showOnBar: config.showOnBar,
     showInList: config.showInList,
   };

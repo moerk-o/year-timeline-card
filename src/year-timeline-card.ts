@@ -196,6 +196,7 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
         position: m.position,
         label: m.label,
         type: m.type,
+        color: m.color,
       }));
   }
 }
