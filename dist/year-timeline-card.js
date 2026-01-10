@@ -67,6 +67,11 @@ var YearTimelineCard=function(y){"use strict";/**
     box-shadow: none;
   }
 `,nt=I`
+  :host {
+    display: block;
+    width: 100%;
+  }
+
   .timeline-container {
     position: relative;
     width: 100%;
@@ -186,6 +191,11 @@ var YearTimelineCard=function(y){"use strict";/**
     border-radius: 0 50% 50% 0;
   }
 `,ot=I`
+  :host {
+    display: block;
+    width: 100%;
+  }
+
   .facts-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -227,6 +237,11 @@ var YearTimelineCard=function(y){"use strict";/**
     font-size: 0.8em;
   }
 `,lt=I`
+  :host {
+    display: block;
+    width: 100%;
+  }
+
   .marker-list {
     margin-top: 16px;
     border-top: 1px solid var(--ytc-divider);

@@ -46,6 +46,11 @@ export const cardStyles = css`
 `;
 
 export const timelineBarStyles = css`
+  :host {
+    display: block;
+    width: 100%;
+  }
+
   .timeline-container {
     position: relative;
     width: 100%;
@@ -167,6 +172,11 @@ export const timelineBarStyles = css`
 `;
 
 export const factsBlockStyles = css`
+  :host {
+    display: block;
+    width: 100%;
+  }
+
   .facts-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -210,6 +220,11 @@ export const factsBlockStyles = css`
 `;
 
 export const markerListStyles = css`
+  :host {
+    display: block;
+    width: 100%;
+  }
+
   .marker-list {
     margin-top: 16px;
     border-top: 1px solid var(--ytc-divider);
