@@ -293,4 +293,4 @@ The card uses ISO 8601 week numbering:
 
 ## License
 
-MIT
+[MIT](LICENSE)
