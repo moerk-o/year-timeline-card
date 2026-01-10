@@ -230,7 +230,7 @@ window.customCards.push({
 
 // Log registration
 console.info(
-  '%c YEAR-TIMELINE-CARD %c v1.0.1 ',
+  '%c YEAR-TIMELINE-CARD %c v1.0.2 ',
   'color: white; background: #03a9f4; font-weight: bold;',
   'color: #03a9f4; background: white; font-weight: bold;'
 );
