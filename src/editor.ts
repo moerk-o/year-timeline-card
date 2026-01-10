@@ -161,6 +161,8 @@ const LABELS = {
     markerColor: 'Marker-Farbe',
     noMarkers: 'Keine Marker konfiguriert',
     addFact: 'Kennzahl hinzufügen',
+    showYamlEditor: 'YAML-Editor anzeigen',
+    showVisualEditor: 'Visuellen Editor anzeigen',
   },
   en: {
     general: 'General',
@@ -205,6 +207,8 @@ const LABELS = {
     markerColor: 'Marker Color',
     noMarkers: 'No markers configured',
     addFact: 'Add fact',
+    showYamlEditor: 'Show YAML editor',
+    showVisualEditor: 'Show visual editor',
   },
 };
 
@@ -240,6 +244,9 @@ export class YearTimelineCardEditor extends LitElement {
 
   @state()
   private _editingMarkerIndex: number | null = null;
+
+  @state()
+  private _markerYamlMode = false;
 
   @state()
   private _helpersLoaded = false;
@@ -361,6 +368,16 @@ export class YearTimelineCardEditor extends LitElement {
 
     .switch-row span {
       color: var(--primary-text-color);
+    }
+
+    /* YAML editor */
+    ha-code-editor {
+      display: block;
+      min-height: 150px;
+    }
+
+    .yaml-toggle {
+      margin-left: auto;
     }
 
     /* Color picker */
@@ -807,6 +824,13 @@ export class YearTimelineCardEditor extends LitElement {
     const entity = this.hass?.states[marker.entity];
     const friendlyName = entity?.attributes.friendly_name ?? marker.entity;
 
+    // MDI icon paths
+    const codeJsonPath =
+      'M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19M12,15A1,1 0 0,1 13,16A1,1 0 0,1 12,17A1,1 0 0,1 11,16A1,1 0 0,1 12,15M8,15A1,1 0 0,1 9,16A1,1 0 0,1 8,17A1,1 0 0,1 7,16A1,1 0 0,1 8,15M16,15A1,1 0 0,1 17,16A1,1 0 0,1 16,17A1,1 0 0,1 15,16A1,1 0 0,1 16,15Z';
+    const formPath =
+      'M14,17H17V14H19V17H22V19H19V22H17V19H14V17M12,17V19H9V17H12M7,17V19H3V15H5V17H7M3,13V10H5V13H3M3,8V4H7V6H5V8H3M9,4H12V6H9V4M15,4H19V8H17V6H15V4M19,10V12H17V10H19Z';
+    const yamlModeTooltip = this._markerYamlMode ? l.showVisualEditor : l.showYamlEditor;
+
     return html`
       <div class="sub-editor">
         <div class="sub-editor-header">
@@ -815,60 +839,164 @@ export class YearTimelineCardEditor extends LitElement {
             @click=${this._onBackFromSubEditor}
           ></ha-icon-button>
           <span class="sub-editor-title">${l.editMarker}: ${friendlyName}</span>
+          <ha-icon-button
+            class="yaml-toggle"
+            .path=${this._markerYamlMode ? formPath : codeJsonPath}
+            title=${yamlModeTooltip}
+            @click=${this._onToggleMarkerYamlMode}
+          ></ha-icon-button>
         </div>
 
-        <div class="form-row">
-          <ha-textfield
-            .label=${l.label}
-            .helper=${l.labelHelper}
-            .value=${marker.label ?? ''}
-            .placeholder=${friendlyName}
-            @input=${(e: Event): void => this._onMarkerFieldChange('label', e)}
-          ></ha-textfield>
-        </div>
-
-        <div class="form-row">
-          <ha-select
-            .label=${l.type}
-            .value=${marker.type ?? DEFAULT_MARKER.type}
-            @selected=${(e: CustomEvent): void => this._onMarkerTypeChange(e)}
-            @closed=${(e: Event): void => e.stopPropagation()}
-          >
-            <mwc-list-item value="point">${l.point}</mwc-list-item>
-            <mwc-list-item value="rangeStart">${l.rangeStart}</mwc-list-item>
-            <mwc-list-item value="rangeEnd">${l.rangeEnd}</mwc-list-item>
-          </ha-select>
-        </div>
-
-        <div class="form-row">
-          <ha-select
-            class="color-picker-select"
-            .label=${l.markerColor}
-            .value=${marker.color ?? 'default'}
-            @selected=${(e: CustomEvent): void => this._onMarkerColorChange(e)}
-            @closed=${(e: Event): void => e.stopPropagation()}
-          >
-            ${this._renderMarkerColorOptions(marker.color)}
-          </ha-select>
-        </div>
-
-        <div class="switch-row">
-          <span>${l.showOnBar}</span>
-          <ha-switch
-            .checked=${marker.showOnBar ?? DEFAULT_MARKER.showOnBar}
-            @change=${(e: Event): void => this._onMarkerSwitchChange('showOnBar', e)}
-          ></ha-switch>
-        </div>
-
-        <div class="switch-row">
-          <span>${l.showInList}</span>
-          <ha-switch
-            .checked=${marker.showInList ?? DEFAULT_MARKER.showInList}
-            @change=${(e: Event): void => this._onMarkerSwitchChange('showInList', e)}
-          ></ha-switch>
-        </div>
+        ${this._markerYamlMode
+          ? this._renderMarkerYamlEditor(marker)
+          : this._renderMarkerVisualEditor(marker, friendlyName, l)}
       </div>
     `;
+  }
+
+  private _renderMarkerVisualEditor(
+    marker: MarkerEditorConfig,
+    friendlyName: string,
+    l: ReturnType<typeof this._getLabels>
+  ): TemplateResult {
+    return html`
+      <div class="form-row">
+        <ha-textfield
+          .label=${l.label}
+          .helper=${l.labelHelper}
+          .value=${marker.label ?? ''}
+          .placeholder=${friendlyName}
+          @input=${(e: Event): void => this._onMarkerFieldChange('label', e)}
+        ></ha-textfield>
+      </div>
+
+      <div class="form-row">
+        <ha-select
+          .label=${l.type}
+          .value=${marker.type ?? DEFAULT_MARKER.type}
+          @selected=${(e: CustomEvent): void => this._onMarkerTypeChange(e)}
+          @closed=${(e: Event): void => e.stopPropagation()}
+        >
+          <mwc-list-item value="point">${l.point}</mwc-list-item>
+          <mwc-list-item value="rangeStart">${l.rangeStart}</mwc-list-item>
+          <mwc-list-item value="rangeEnd">${l.rangeEnd}</mwc-list-item>
+        </ha-select>
+      </div>
+
+      <div class="form-row">
+        <ha-select
+          class="color-picker-select"
+          .label=${l.markerColor}
+          .value=${marker.color ?? 'default'}
+          @selected=${(e: CustomEvent): void => this._onMarkerColorChange(e)}
+          @closed=${(e: Event): void => e.stopPropagation()}
+        >
+          ${this._renderMarkerColorOptions(marker.color)}
+        </ha-select>
+      </div>
+
+      <div class="switch-row">
+        <span>${l.showOnBar}</span>
+        <ha-switch
+          .checked=${marker.showOnBar ?? DEFAULT_MARKER.showOnBar}
+          @change=${(e: Event): void => this._onMarkerSwitchChange('showOnBar', e)}
+        ></ha-switch>
+      </div>
+
+      <div class="switch-row">
+        <span>${l.showInList}</span>
+        <ha-switch
+          .checked=${marker.showInList ?? DEFAULT_MARKER.showInList}
+          @change=${(e: Event): void => this._onMarkerSwitchChange('showInList', e)}
+        ></ha-switch>
+      </div>
+    `;
+  }
+
+  private _renderMarkerYamlEditor(marker: MarkerEditorConfig): TemplateResult {
+    const yaml = this._markerToYaml(marker);
+    return html`
+      <ha-code-editor
+        .hass=${this.hass}
+        .value=${yaml}
+        mode="yaml"
+        autofocus
+        autocomplete-entities
+        autocomplete-icons
+        @value-changed=${this._onMarkerYamlChange}
+      ></ha-code-editor>
+    `;
+  }
+
+  private _markerToYaml(marker: MarkerEditorConfig): string {
+    const lines: string[] = [];
+    lines.push(`entity: ${marker.entity}`);
+    if (marker.label) {
+      lines.push(`label: "${marker.label}"`);
+    }
+    if (marker.type && marker.type !== DEFAULT_MARKER.type) {
+      lines.push(`type: ${marker.type}`);
+    }
+    if (marker.color) {
+      lines.push(`color: "${marker.color}"`);
+    }
+    if (marker.showOnBar !== undefined && marker.showOnBar !== DEFAULT_MARKER.showOnBar) {
+      lines.push(`showOnBar: ${marker.showOnBar}`);
+    }
+    if (marker.showInList !== undefined && marker.showInList !== DEFAULT_MARKER.showInList) {
+      lines.push(`showInList: ${marker.showInList}`);
+    }
+    return lines.join('\n');
+  }
+
+  private _yamlToMarker(yaml: string): MarkerEditorConfig | null {
+    try {
+      // Simple YAML parser for marker config
+      const lines = yaml.split('\n');
+      const result: Record<string, unknown> = {};
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        const colonIndex = trimmed.indexOf(':');
+        if (colonIndex === -1) continue;
+
+        const key = trimmed.substring(0, colonIndex).trim();
+        let value: unknown = trimmed.substring(colonIndex + 1).trim();
+
+        // Remove quotes from string values
+        if (
+          typeof value === 'string' &&
+          ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'")))
+        ) {
+          value = value.slice(1, -1);
+        }
+
+        // Parse booleans
+        if (value === 'true') value = true;
+        if (value === 'false') value = false;
+
+        result[key] = value;
+      }
+
+      // Validate required field
+      if (!result.entity || typeof result.entity !== 'string') {
+        return null;
+      }
+
+      return {
+        entity: result.entity as string,
+        label: result.label as string | undefined,
+        type: result.type as MarkerType | undefined,
+        color: result.color as string | undefined,
+        showOnBar: result.showOnBar as boolean | undefined,
+        showInList: result.showInList as boolean | undefined,
+      };
+    } catch {
+      return null;
+    }
   }
 
   // ==========================================================================
@@ -1083,6 +1211,24 @@ export class YearTimelineCardEditor extends LitElement {
 
   private _onBackFromSubEditor = (): void => {
     this._editingMarkerIndex = null;
+    this._markerYamlMode = false;
+  };
+
+  private _onToggleMarkerYamlMode = (): void => {
+    this._markerYamlMode = !this._markerYamlMode;
+  };
+
+  private _onMarkerYamlChange = (e: CustomEvent): void => {
+    const yaml = e.detail.value as string;
+    const parsed = this._yamlToMarker(yaml);
+    if (parsed && this._editingMarkerIndex !== null) {
+      const markers = [...(this._config?.markers ?? [])];
+      markers[this._editingMarkerIndex] = parsed;
+      this._updateConfig({
+        ...this._config!,
+        markers,
+      });
+    }
   };
 
   private _onMarkerFieldChange(field: 'label', e: Event): void {
