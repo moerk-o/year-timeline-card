@@ -468,17 +468,19 @@ var YearTimelineCard=function(g){"use strict";/**
               @change=${this._onProgressFillChange}
             ></ha-switch>
           </div>
-          <div class="form-row">
-            <ha-select
-              class="color-picker-select"
-              .label=${s.progressColor}
-              .value=${e.progress_color??"default"}
-              @selected=${this._onProgressColorChange}
-              @closed=${r=>r.stopPropagation()}
-            >
-              ${this._renderColorOptions()}
-            </ha-select>
-          </div>
+          ${e.show_progress_fill??!0?c`
+                <div class="form-row">
+                  <ha-select
+                    class="color-picker-select"
+                    .label=${s.progressColor}
+                    .value=${e.progress_color??"default"}
+                    @selected=${this._onProgressColorChange}
+                    @closed=${r=>r.stopPropagation()}
+                  >
+                    ${this._renderColorOptions()}
+                  </ha-select>
+                </div>
+              `:u}
         </div>
       </ha-expansion-panel>
     `}_renderColorOptions(){var i,n;const s=this._getLocale(),e=this._getLabels(),t=((n=(i=this._config)==null?void 0:i.bar)==null?void 0:n.progress_color)??"default",r=t!=="default"&&!Te.some(o=>o.value===t),a=[];return r&&a.push(c`

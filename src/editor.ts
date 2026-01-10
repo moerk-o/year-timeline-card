@@ -615,17 +615,21 @@ export class YearTimelineCardEditor extends LitElement {
               @change=${this._onProgressFillChange}
             ></ha-switch>
           </div>
-          <div class="form-row">
-            <ha-select
-              class="color-picker-select"
-              .label=${l.progressColor}
-              .value=${bar.progress_color ?? 'default'}
-              @selected=${this._onProgressColorChange}
-              @closed=${(e: Event): void => e.stopPropagation()}
-            >
-              ${this._renderColorOptions()}
-            </ha-select>
-          </div>
+          ${(bar.show_progress_fill ?? true)
+            ? html`
+                <div class="form-row">
+                  <ha-select
+                    class="color-picker-select"
+                    .label=${l.progressColor}
+                    .value=${bar.progress_color ?? 'default'}
+                    @selected=${this._onProgressColorChange}
+                    @closed=${(e: Event): void => e.stopPropagation()}
+                  >
+                    ${this._renderColorOptions()}
+                  </ha-select>
+                </div>
+              `
+            : nothing}
         </div>
       </ha-expansion-panel>
     `;
