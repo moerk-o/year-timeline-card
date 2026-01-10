@@ -49,6 +49,15 @@ export const timelineBarStyles = css`
   :host {
     display: block;
     width: 100%;
+    /* Fallback values for CSS variables in case inheritance is broken */
+    --ytc-primary-color: var(--primary-color, #03a9f4);
+    --ytc-text-primary: var(--primary-text-color, #212121);
+    --ytc-text-secondary: var(--secondary-text-color, #727272);
+    --ytc-background: var(--card-background-color, #fff);
+    --ytc-divider: var(--divider-color, #e0e0e0);
+    --ytc-bar-background: var(--disabled-color, #bdbdbd);
+    --ytc-bar-height: 24px;
+    --ytc-marker-color: var(--accent-color, #ff9800);
   }
 
   .timeline-container {
@@ -175,6 +184,9 @@ export const factsBlockStyles = css`
   :host {
     display: block;
     width: 100%;
+    /* Fallback values for CSS variables in case inheritance is broken */
+    --ytc-text-primary: var(--primary-text-color, #212121);
+    --ytc-text-secondary: var(--secondary-text-color, #727272);
   }
 
   .facts-container {
@@ -223,6 +235,11 @@ export const markerListStyles = css`
   :host {
     display: block;
     width: 100%;
+    /* Fallback values for CSS variables in case inheritance is broken */
+    --ytc-text-primary: var(--primary-text-color, #212121);
+    --ytc-text-secondary: var(--secondary-text-color, #727272);
+    --ytc-divider: var(--divider-color, #e0e0e0);
+    --ytc-marker-color: var(--accent-color, #ff9800);
   }
 
   .marker-list {
