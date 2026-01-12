@@ -49,6 +49,8 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
 
   private _now: Date = new Date();
   private _updateInterval?: ReturnType<typeof setInterval>;
+  private _cardModApplied = false;
+  private _rawConfig?: Record<string, unknown>;
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -57,6 +59,42 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
       this._now = new Date();
       this.requestUpdate();
     }, 60000);
+  }
+
+  override firstUpdated(): void {
+    // Apply card-mod styles after first render
+    this._applyCardMod();
+  }
+
+  private _applyCardMod(): void {
+    if (this._cardModApplied || !this._rawConfig?.card_mod) {
+      return;
+    }
+
+    customElements.whenDefined('card-mod').then(() => {
+      const cardMod = customElements.get('card-mod') as {
+        applyToElement?: (
+          el: HTMLElement,
+          type: string,
+          config: unknown,
+          variables: Record<string, unknown>,
+          shadow?: boolean,
+          cls?: string
+        ) => void;
+      };
+
+      if (cardMod?.applyToElement) {
+        cardMod.applyToElement(
+          this,
+          'card',
+          this._rawConfig?.card_mod,
+          { config: this._rawConfig },
+          true,
+          'type-custom-year-timeline-card'
+        );
+        this._cardModApplied = true;
+      }
+    });
   }
 
   override disconnectedCallback(): void {
@@ -74,6 +112,7 @@ export class YearTimelineCard extends LitElement implements LovelaceCard {
     }
 
     this._error = undefined;
+    this._rawConfig = config as unknown as Record<string, unknown>;
     this._config = normalizeConfig(config);
   }
 
@@ -230,7 +269,7 @@ window.customCards.push({
 
 // Log registration
 console.info(
-  '%c YEAR-TIMELINE-CARD %c v1.0.3 ',
+  '%c YEAR-TIMELINE-CARD %c v1.0.4 ',
   'color: white; background: #03a9f4; font-weight: bold;',
   'color: #03a9f4; background: white; font-weight: bold;'
 );
